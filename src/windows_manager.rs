@@ -1,3 +1,4 @@
+use crate::keys::Keyboard;
 use crate::windows_defer_pos_handle::WindowsDeferPosHandle;
 use crate::windows_window::WindowsWindow;
 use anyhow::Result;
@@ -8,16 +9,13 @@ use windows::core::PCWSTR;
 use windows::Win32::Foundation::{BOOL, HMODULE, HWND, LPARAM, LRESULT, TRUE, WPARAM};
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::UI::Accessibility::{SetWinEventHook, UnhookWinEvent, HWINEVENTHOOK};
-use windows::Win32::UI::Input::KeyboardAndMouse::{
-    GetAsyncKeyState, VK_CONTROL, VK_LWIN, VK_MENU, VK_RWIN, VK_SHIFT,
-};
 use windows::Win32::UI::WindowsAndMessaging::{
     BeginDeferWindowPos, CallNextHookEx, DispatchMessageW, EnumWindows, GetMessageW,
     SetWindowsHookExW, TranslateMessage, UnhookWindowsHookEx, EVENT_OBJECT_CLOAKED,
     EVENT_OBJECT_DESTROY, EVENT_OBJECT_LOCATIONCHANGE, EVENT_OBJECT_SHOW, EVENT_OBJECT_UNCLOAKED,
     EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_MINIMIZEEND, EVENT_SYSTEM_MINIMIZESTART,
-    EVENT_SYSTEM_MOVESIZEEND, EVENT_SYSTEM_MOVESIZESTART, KBDLLHOOKSTRUCT, MSG, WH_KEYBOARD_LL,
-    WH_MOUSE_LL, WINEVENT_OUTOFCONTEXT, WM_KEYDOWN, WM_LBUTTONUP, WM_SYSKEYDOWN,
+    EVENT_SYSTEM_MOVESIZEEND, EVENT_SYSTEM_MOVESIZESTART, MSG, WH_KEYBOARD_LL, WH_MOUSE_LL,
+    WINEVENT_OUTOFCONTEXT, WM_LBUTTONUP,
 };
 
 lazy_static::lazy_static! {
@@ -214,25 +212,9 @@ impl WindowsManager {
         w_param: WPARAM,
         l_param: LPARAM,
     ) -> LRESULT {
-        if n_code >= 0 {
-            match w_param.0 as u32 {
-                WM_KEYDOWN | WM_SYSKEYDOWN => {
-                    let capture = &*(l_param.0 as *const KBDLLHOOKSTRUCT);
-                    debug!(
-                        "keyboard_callback | vk_code: 0x{:X} | key: {:?}",
-                        capture.vkCode,
-                        crate::keys::VirtualKey::from_vk(capture.vkCode)
-                    );
-
-                    let shift_pressed = GetAsyncKeyState(VK_SHIFT.0 as i32) & (1 << 15) != 0;
-                    let ctrl_pressed = GetAsyncKeyState(VK_CONTROL.0 as i32) & (1 << 15) != 0;
-                    let alt_pressed = GetAsyncKeyState(VK_MENU.0 as i32) & (1 << 15) != 0;
-                    let win_pressed = GetAsyncKeyState(VK_LWIN.0 as i32) & (1 << 15) != 0
-                        || GetAsyncKeyState(VK_RWIN.0 as i32) & (1 << 15) != 0;
-                }
-                _ => {}
-            }
-        }
+        if let Some(_keyboard) = Keyboard::new(n_code, w_param, l_param) {
+            // TODO: Do something, perhaps crossbeam_channel
+        };
 
         CallNextHookEx(None, n_code, w_param, l_param)
     }

@@ -1,3 +1,56 @@
+use log::debug;
+use windows::Win32::Foundation::{LPARAM, WPARAM};
+use windows::Win32::UI::Input::KeyboardAndMouse::{
+    GetAsyncKeyState, VK_CONTROL, VK_LWIN, VK_MENU, VK_RWIN, VK_SHIFT,
+};
+use windows::Win32::UI::WindowsAndMessaging::KBDLLHOOKSTRUCT;
+use windows::Win32::UI::WindowsAndMessaging::{WM_KEYDOWN, WM_SYSKEYDOWN};
+
+#[derive(Debug)]
+pub struct Keyboard {
+    pub shift: bool,
+    pub ctrl: bool,
+    pub alt: bool,
+    pub win: bool,
+    pub key: VirtualKey,
+}
+
+impl Keyboard {
+    pub unsafe fn new(n_code: i32, w_param: WPARAM, l_param: LPARAM) -> Option<Self> {
+        if n_code >= 0 {
+            match w_param.0 as u32 {
+                WM_KEYDOWN | WM_SYSKEYDOWN => {
+                    let capture = &*(l_param.0 as *const KBDLLHOOKSTRUCT);
+
+                    let key = VirtualKey::from_vk(capture.vkCode);
+
+                    debug!(
+                        "keyboard | vk_code: 0x{:X} | key: {:?}",
+                        capture.vkCode, &key
+                    );
+
+                    let shift = GetAsyncKeyState(VK_SHIFT.0 as i32) & (1 << 15) != 0;
+                    let ctrl = GetAsyncKeyState(VK_CONTROL.0 as i32) & (1 << 15) != 0;
+                    let alt = GetAsyncKeyState(VK_MENU.0 as i32) & (1 << 15) != 0;
+                    let win = GetAsyncKeyState(VK_LWIN.0 as i32) & (1 << 15) != 0
+                        || GetAsyncKeyState(VK_RWIN.0 as i32) & (1 << 15) != 0;
+
+                    Some(Keyboard {
+                        shift,
+                        ctrl,
+                        alt,
+                        win,
+                        key,
+                    })
+                }
+                _ => None,
+            }
+        } else {
+            None
+        }
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub enum VirtualKey {
     Unknown = 0x00,
