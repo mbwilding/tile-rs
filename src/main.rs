@@ -10,6 +10,7 @@ mod windows_window;
 
 use crate::windows_manager::WindowsManager;
 use eframe::egui;
+use log::debug;
 
 pub const APP_NAME: &str = "Tile-RS";
 
@@ -33,10 +34,14 @@ fn main() -> eframe::Result<()> {
         native_options,
         Box::new(move |cc| {
             let mut app = app::App::new(cc);
-            let windows_manager = WindowsManager::default();
+            let mut windows_manager = WindowsManager::default();
             windows_manager.init();
+            debug!("initial windows: {:?}", windows_manager.windows.len());
+            for (_, window) in windows_manager.windows.iter() {
+                println!("window: {:#?}", window);
+            }
             app.windows_manager = windows_manager;
-            Box::new(app::App::new(cc))
+            Box::new(app)
         }),
     )
 }

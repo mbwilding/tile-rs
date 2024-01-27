@@ -81,7 +81,16 @@ impl eframe::App for App {
                     });
             });
 
-        egui::CentralPanel::default().show(ctx, |_ui| {});
+        egui::CentralPanel::default().show(ctx, |ui| {
+            ui.horizontal(|ui| {
+                ui.label("Windows");
+                ui.label(self.windows_manager.windows.len().to_string());
+            });
+            ui.horizontal(|ui| {
+                ui.label("Floating");
+                ui.label(self.windows_manager.floating.len().to_string());
+            });
+        });
     }
 
     fn save(&mut self, storage: &mut dyn eframe::Storage) {

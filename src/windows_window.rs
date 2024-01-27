@@ -25,7 +25,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
 #[derive(Debug)]
 pub struct WindowsWindow {
     // Private
-    handle: HWND,
+    handle: isize,
     process_id: u32,
     process_name: String,
     process_file_name: String,
@@ -36,10 +36,10 @@ pub struct WindowsWindow {
 }
 
 impl WindowsWindow {
-    pub fn new(handle: HWND) -> Result<Self> {
+    pub fn new(handle: isize) -> Result<Self> {
         let mut process_id = 0;
 
-        let thread_id = unsafe { GetWindowThreadProcessId(handle, Some(&mut process_id)) };
+        let thread_id = unsafe { GetWindowThreadProcessId(HWND(handle), Some(&mut process_id)) };
 
         if thread_id == 0 {
             error!("Failed to retrieve process ID");
@@ -92,21 +92,26 @@ impl WindowsWindow {
     }
 
     pub fn title(&self) -> String {
-        let length = unsafe { GetWindowTextLengthW(self.handle) };
+        let handle = HWND(self.handle);
+        let length = unsafe { GetWindowTextLengthW(handle) };
         let mut bytes: Vec<u16> = vec![0; length as usize + 1];
-        let _ = unsafe { GetWindowTextW(self.handle, bytes.as_mut_slice()) };
+        let _ = unsafe { GetWindowTextW(handle, bytes.as_mut_slice()) };
 
         String::from_utf16_lossy(&bytes[..length as usize])
     }
 
-    pub fn handle(&self) -> HWND {
+    pub fn handle(&self) -> isize {
         self.handle
+    }
+
+    pub fn hwnd(&self) -> HWND {
+        HWND(self.handle)
     }
 
     pub fn class(&self) -> String {
         let mut class: Vec<u16> = vec![0; MAX_PATH as usize];
         unsafe {
-            GetClassNameW(self.handle, class.as_mut_slice());
+            GetClassNameW(self.hwnd(), class.as_mut_slice());
         }
 
         let null_pos = class.iter().position(|&c| c == 0).unwrap_or(class.len());
@@ -117,7 +122,7 @@ impl WindowsWindow {
     pub fn location(&self) -> WindowLocation {
         let mut rect: RECT = RECT::default();
         unsafe {
-            GetWindowRect(self.handle, &mut rect).unwrap(); // TODO: Look into this
+            GetWindowRect(self.hwnd(), &mut rect).unwrap(); // TODO: Look into this
         }
 
         let mut state = WindowState::Normal;
@@ -137,9 +142,11 @@ impl WindowsWindow {
     }
 
     pub fn offset(&self) -> Rectangle {
+        let handle = HWND(self.handle);
+
         let mut rect1: RECT = RECT::default();
         unsafe {
-            GetWindowRect(self.handle, &mut rect1).unwrap(); // TODO: Look into this
+            GetWindowRect(handle, &mut rect1).unwrap(); // TODO: Look into this
         }
 
         let x1 = rect1.left;
@@ -151,8 +158,8 @@ impl WindowsWindow {
         let size = size_of::<RECT>() as u32;
         unsafe {
             let rect_ptr = &mut rect2 as *mut _ as *mut c_void; // TODO: Look into this
-            DwmGetWindowAttribute(self.handle, DWMWA_EXTENDED_FRAME_BOUNDS, rect_ptr, size)
-                .unwrap(); // TODO: Look into this
+            DwmGetWindowAttribute(handle, DWMWA_EXTENDED_FRAME_BOUNDS, rect_ptr, size).unwrap();
+            // TODO: Look into this
         }
 
         let x2 = rect2.left;
@@ -186,23 +193,25 @@ impl WindowsWindow {
     }
 
     pub fn can_layout(&self) -> bool {
+        let hwnd = self.hwnd();
+
         self.did_manual_hide
-            || win32_helpers::is_cloaked(self.handle)
-                && win32_helpers::is_app_window(self.handle)
-                && win32_helpers::is_alt_tab_window(self.handle)
+            || win32_helpers::is_cloaked(hwnd)
+                && win32_helpers::is_app_window(hwnd)
+                && win32_helpers::is_alt_tab_window(hwnd)
     }
 
     pub fn is_focused(&self) -> bool {
         let foreground_window = unsafe { GetForegroundWindow() };
-        self.handle == foreground_window
+        self.hwnd() == foreground_window
     }
 
     pub fn is_minimized(&self) -> bool {
-        unsafe { IsIconic(self.handle).as_bool() }
+        unsafe { IsIconic(self.hwnd()).as_bool() }
     }
 
     pub fn is_maximized(&self) -> bool {
-        unsafe { IsZoomed(self.handle).as_bool() }
+        unsafe { IsZoomed(self.hwnd()).as_bool() }
     }
 
     pub fn is_fullscreen(handle: HWND) -> bool {
@@ -233,7 +242,7 @@ impl WindowsWindow {
             unsafe {
                 debug!("[{}] :: Focus", self.title());
                 // TODO: keybd_event(0, 0, KEYBD_EVENT_FLAGS(0), 0);
-                SetForegroundWindow(self.handle);
+                SetForegroundWindow(self.hwnd());
             }
         }
     }
@@ -246,7 +255,7 @@ impl WindowsWindow {
         }
 
         unsafe {
-            ShowWindow(self.handle, SW_HIDE);
+            ShowWindow(self.hwnd(), SW_HIDE);
         }
     }
 
@@ -256,7 +265,7 @@ impl WindowsWindow {
         trace!("[{}] :: ShowNormal", self.title());
 
         unsafe {
-            ShowWindow(self.handle, SW_SHOWNOACTIVATE);
+            ShowWindow(self.hwnd(), SW_SHOWNOACTIVATE);
         }
     }
 
@@ -266,7 +275,7 @@ impl WindowsWindow {
         trace!("[{}] :: ShowMaximized", self.title());
 
         unsafe {
-            ShowWindow(self.handle, SW_SHOWMAXIMIZED);
+            ShowWindow(self.hwnd(), SW_SHOWMAXIMIZED);
         }
     }
 
@@ -276,7 +285,7 @@ impl WindowsWindow {
         trace!("[{}] :: ShowMinimized", self.title());
 
         unsafe {
-            ShowWindow(self.handle, SW_SHOWMINIMIZED);
+            ShowWindow(self.hwnd(), SW_SHOWMINIMIZED);
         }
     }
 
@@ -294,7 +303,7 @@ impl WindowsWindow {
 
     pub fn bring_to_top(&self) {
         unsafe {
-            BringWindowToTop(self.handle).unwrap(); // TODO: Look into this
+            BringWindowToTop(self.hwnd()).unwrap(); // TODO: Look into this
         }
 
         // TODO: WindowUpdated?.Invoke(this);
@@ -304,7 +313,7 @@ impl WindowsWindow {
         debug!("[{}] :: Close", self.title());
 
         unsafe {
-            SendNotifyMessageW(self.handle, WM_SYSCOMMAND, WPARAM(SC_CLOSE as usize), None)
+            SendNotifyMessageW(self.hwnd(), WM_SYSCOMMAND, WPARAM(SC_CLOSE as usize), None)
                 .unwrap(); // TODO: Look into this
         }
     }
@@ -319,7 +328,7 @@ impl Display for WindowsWindow {
         write!(
             f,
             "[{}][{}][{}][{}]",
-            self.handle.0,
+            self.handle,
             self.title(),
             self.class(),
             self.process_name,

@@ -51,13 +51,13 @@ impl WindowsDeferPosHandle {
 impl Drop for WindowsDeferPosHandle {
     fn drop(&mut self) {
         self.to_minimize.iter().for_each(|w| unsafe {
-            ShowWindow(w.handle(), SW_MINIMIZE);
+            ShowWindow(w.hwnd(), SW_MINIMIZE);
         });
         self.to_maximize.iter().for_each(|w| unsafe {
-            ShowWindow(w.handle(), SW_SHOWMAXIMIZED);
+            ShowWindow(w.hwnd(), SW_SHOWMAXIMIZED);
         });
         self.to_normal.iter().for_each(|w| unsafe {
-            ShowWindow(w.handle(), SW_SHOWNOACTIVATE);
+            ShowWindow(w.hwnd(), SW_SHOWNOACTIVATE);
         });
 
         unsafe {

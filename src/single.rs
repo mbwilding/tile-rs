@@ -1,5 +1,4 @@
 use crate::APP_NAME;
-use anyhow::Result;
 use log::error;
 use single_instance::SingleInstance;
 

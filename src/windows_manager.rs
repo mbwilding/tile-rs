@@ -1,96 +1,152 @@
 use crate::windows_defer_pos_handle::WindowsDeferPosHandle;
 use crate::windows_window::WindowsWindow;
 use anyhow::Result;
-use log::{error, info, trace};
+use log::{debug, error, info, trace};
 use std::collections::HashMap;
+use std::sync::Mutex;
 use windows::core::PCWSTR;
-use windows::Win32::Foundation::{HMODULE, HWND, LPARAM, LRESULT, WPARAM};
+use windows::Win32::Foundation::{BOOL, HMODULE, HWND, LPARAM, LRESULT, TRUE, WPARAM};
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::UI::Accessibility::{SetWinEventHook, UnhookWinEvent, HWINEVENTHOOK};
 use windows::Win32::UI::WindowsAndMessaging::{
-    BeginDeferWindowPos, CallNextHookEx, DispatchMessageW, GetMessageW, SetWindowsHookExW,
-    TranslateMessage, UnhookWindowsHookEx, EVENT_OBJECT_CLOAKED, EVENT_OBJECT_DESTROY,
-    EVENT_OBJECT_LOCATIONCHANGE, EVENT_OBJECT_SHOW, EVENT_OBJECT_UNCLOAKED,
+    BeginDeferWindowPos, CallNextHookEx, DispatchMessageW, EnumWindows, GetMessageW,
+    SetWindowsHookExW, TranslateMessage, UnhookWindowsHookEx, EVENT_OBJECT_CLOAKED,
+    EVENT_OBJECT_DESTROY, EVENT_OBJECT_LOCATIONCHANGE, EVENT_OBJECT_SHOW, EVENT_OBJECT_UNCLOAKED,
     EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_MINIMIZEEND, EVENT_SYSTEM_MINIMIZESTART,
     EVENT_SYSTEM_MOVESIZEEND, EVENT_SYSTEM_MOVESIZESTART, MSG, WH_MOUSE_LL, WINEVENT_OUTOFCONTEXT,
     WM_LBUTTONUP,
 };
 
+lazy_static::lazy_static! {
+    static ref WINDOW_COLLECTOR: Mutex<Vec<HWND>> = Mutex::new(Vec::new());
+}
+
 #[derive(Debug, Default)]
 pub struct WindowsManager {
-    windows: HashMap<HWND, WindowsWindow>,
-    floating: HashMap<WindowsWindow, bool>,
+    pub windows: HashMap<isize, WindowsWindow>,
+    pub floating: HashMap<WindowsWindow, bool>,
 }
 
 impl WindowsManager {
-    pub fn init(&self) {
-        std::thread::spawn(|| unsafe {
-            info!("Initializing hook");
+    pub fn init(&mut self) {
+        info!("Initializing hook");
 
-            let module_handle = GetModuleHandleW(PCWSTR::null()).unwrap_or_else(|e| {
+        let module_handle = unsafe {
+            GetModuleHandleW(PCWSTR::null()).unwrap_or_else(|e| {
                 error!("Failed GetModuleHandleW: {:?}", e);
                 std::process::exit(69);
-            });
+            })
+        };
 
-            let win_event_hooks = [
-                Self::register_event_hook(EVENT_OBJECT_DESTROY, EVENT_OBJECT_SHOW, module_handle),
+        let win_event_hooks = [
+            unsafe {
+                Self::register_event_hook(EVENT_OBJECT_DESTROY, EVENT_OBJECT_SHOW, module_handle)
+            },
+            unsafe {
                 Self::register_event_hook(
                     EVENT_OBJECT_CLOAKED,
                     EVENT_OBJECT_UNCLOAKED,
                     module_handle,
-                ),
+                )
+            },
+            unsafe {
                 Self::register_event_hook(
                     EVENT_SYSTEM_MINIMIZESTART,
                     EVENT_SYSTEM_MINIMIZEEND,
                     module_handle,
-                ),
+                )
+            },
+            unsafe {
                 Self::register_event_hook(
                     EVENT_SYSTEM_MOVESIZESTART,
                     EVENT_SYSTEM_MOVESIZEEND,
                     module_handle,
-                ),
+                )
+            },
+            unsafe {
                 Self::register_event_hook(
                     EVENT_SYSTEM_FOREGROUND,
                     EVENT_SYSTEM_FOREGROUND,
                     module_handle,
-                ),
+                )
+            },
+            unsafe {
                 Self::register_event_hook(
                     EVENT_OBJECT_LOCATIONCHANGE,
                     EVENT_OBJECT_LOCATIONCHANGE,
                     module_handle,
-                ),
-            ];
+                )
+            },
+        ];
 
-            let _event_mouse =
-                SetWindowsHookExW(WH_MOUSE_LL, Some(Self::mouse_callback), module_handle, 0)
-                    .unwrap_or_else(|e| {
-                        error!("Failed SetWindowsHookExW: {:?}", e);
-                        std::process::exit(69);
-                    });
+        let _event_mouse = unsafe {
+            SetWindowsHookExW(WH_MOUSE_LL, Some(Self::mouse_callback), module_handle, 0)
+                .unwrap_or_else(|e| {
+                    error!("Failed SetWindowsHookExW: {:?}", e);
+                    std::process::exit(69);
+                })
+        };
 
-            info!("Initialized hook");
+        info!("Initialized hook");
 
-            let mut message = MSG::default();
+        let mut windows: Vec<isize> = vec![]; // TODO
 
+        let _ = unsafe {
+            EnumWindows(
+                Some(Self::enum_windows_callback),
+                LPARAM(&mut windows as *mut Vec<isize> as isize),
+            )
+            .ok()
+        };
+
+        for hwnd in WINDOW_COLLECTOR.lock().unwrap().iter() {
+            if crate::win32_helpers::is_app_window(hwnd.to_owned()) {
+                self.register_window(hwnd.0);
+            }
+        }
+
+        let mut message = MSG::default();
+
+        // Handle close
+        std::thread::spawn(move || {
             loop {
-                if GetMessageW(&mut message, HWND(0), 0, 0).as_bool() {
-                    TranslateMessage(&message);
-                    DispatchMessageW(&message);
-                } else {
-                    break;
+                unsafe {
+                    if GetMessageW(&mut message, HWND(0), 0, 0).as_bool() {
+                        TranslateMessage(&message);
+                        DispatchMessageW(&message);
+                    } else {
+                        break;
+                    }
                 }
             }
 
-            UnhookWindowsHookEx(_event_mouse).unwrap_or_else(|e| {
-                error!("Failed UnhookWindowsHookEx: {:?}", e);
-            });
+            unsafe {
+                UnhookWindowsHookEx(_event_mouse).unwrap_or_else(|e| {
+                    error!("Failed UnhookWindowsHookEx: {:?}", e);
+                })
+            };
 
             for hooks in win_event_hooks.into_iter() {
-                if !UnhookWinEvent(hooks).as_bool() {
-                    error!("Failed UnhookWinEvent");
+                unsafe {
+                    if !UnhookWinEvent(hooks).as_bool() {
+                        error!("Failed UnhookWinEvent");
+                    }
                 }
             }
         });
+    }
+
+    unsafe extern "system" fn enum_windows_callback(hwnd: HWND, _: LPARAM) -> BOOL {
+        let mut collector = WINDOW_COLLECTOR.lock().unwrap();
+        collector.push(hwnd);
+
+        TRUE
+    }
+
+    unsafe fn defer_windows_pos(count: i32) -> Result<WindowsDeferPosHandle> {
+        let info = BeginDeferWindowPos(count)?;
+
+        Ok(WindowsDeferPosHandle::new(info))
     }
 
     unsafe fn register_event_hook(
@@ -151,9 +207,23 @@ impl WindowsManager {
         }
     }
 
-    unsafe fn defer_windows_pos(count: i32) -> Result<WindowsDeferPosHandle> {
-        let info = BeginDeferWindowPos(count)?;
+    pub fn register_window(&mut self, handle: isize) {
+        if self.windows.contains_key(&handle) {
+            debug!(
+                "register_window | handle: 0x{:X} already registered",
+                handle
+            );
+            return;
+        }
 
-        Ok(WindowsDeferPosHandle::new(info))
+        debug!("register_window | handle: 0x{:X} not registered", handle);
+
+        match WindowsWindow::new(handle) {
+            Ok(window) => self.windows.insert(handle, window),
+            Err(e) => {
+                error!("register_window | Failed to register window: {:?}", e);
+                None
+            }
+        };
     }
 }
