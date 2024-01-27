@@ -39,12 +39,12 @@ impl WindowsWindow {
     pub fn new(handle: isize) -> Result<Self> {
         let mut process_id = 0;
 
-        let thread_id = unsafe { GetWindowThreadProcessId(HWND(handle), Some(&mut process_id)) };
+        unsafe { GetWindowThreadProcessId(HWND(handle), Some(&mut process_id)) };
 
-        if thread_id == 0 {
-            error!("Failed to retrieve process ID");
-            bail!("Failed to retrieve process ID");
-        };
+        if process_id == 0 {
+            error!("Failed to get process id");
+            bail!("Failed to get process id");
+        }
 
         let process_handle = match unsafe {
             OpenProcess(

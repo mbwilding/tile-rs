@@ -1,3 +1,6 @@
+// hide console window on Windows
+#![windows_subsystem = "windows"]
+
 mod app;
 mod keys;
 mod single;
@@ -9,9 +12,7 @@ mod windows_defer_pos_handle;
 mod windows_manager;
 mod windows_window;
 
-use crate::windows_manager::WindowsManager;
 use eframe::egui;
-use log::debug;
 
 pub const APP_NAME: &str = "Tile-RS";
 
@@ -34,14 +35,8 @@ fn main() -> eframe::Result<()> {
         APP_NAME,
         native_options,
         Box::new(move |cc| {
-            let mut app = app::App::new(cc);
-            let mut windows_manager = WindowsManager::default();
-            windows_manager.init();
-            debug!("initial windows: {:?}", windows_manager.windows.len());
-            for (_, window) in windows_manager.windows.iter() {
-                println!("window: {:#?}", window);
-            }
-            app.windows_manager = windows_manager;
+            let app = app::App::new(cc);
+            windows_manager::INSTANCE.lock().unwrap().init();
             Box::new(app)
         }),
     )

@@ -1,4 +1,4 @@
-use crate::windows_manager::WindowsManager;
+use crate::windows_manager;
 use eframe::egui;
 use eframe::emath::Align;
 use serde::{Deserialize, Serialize};
@@ -6,9 +6,6 @@ use serde::{Deserialize, Serialize};
 #[derive(Default, Deserialize, Serialize)]
 #[serde(default)]
 pub struct App {
-    #[serde(skip)]
-    pub windows_manager: WindowsManager,
-
     settings: Settings,
 
     #[serde(skip)]
@@ -82,13 +79,15 @@ impl eframe::App for App {
             });
 
         egui::CentralPanel::default().show(ctx, |ui| {
+            let mut windows_manager = windows_manager::INSTANCE.lock().unwrap();
+
             ui.horizontal(|ui| {
                 ui.label("Windows");
-                ui.label(self.windows_manager.windows.len().to_string());
+                ui.label(windows_manager.windows.len().to_string());
             });
             ui.horizontal(|ui| {
                 ui.label("Floating");
-                ui.label(self.windows_manager.floating.len().to_string());
+                ui.label(windows_manager.floating.len().to_string());
             });
 
             ui.separator();
@@ -96,31 +95,28 @@ impl eframe::App for App {
             egui::containers::collapsing_header::CollapsingHeader::new("Windows")
                 .default_open(true)
                 .show(ui, |ui| {
-                    self.windows_manager
-                        .windows
-                        .iter_mut()
-                        .for_each(|(_, window)| {
-                            ui.horizontal(|ui| {
-                                let mut title = window.title();
-                                if title.is_empty() {
-                                    title.push('_');
-                                }
+                    windows_manager.windows.iter_mut().for_each(|(_, window)| {
+                        ui.horizontal(|ui| {
+                            let mut title = window.title();
+                            if title.is_empty() {
+                                title.push('_');
+                            }
 
-                                if ui.button("Normal").clicked() {
-                                    window.show_normal();
-                                }
+                            if ui.button("Normal").clicked() {
+                                window.show_normal();
+                            }
 
-                                if ui.button("Minimize").clicked() {
-                                    window.show_minimized();
-                                }
+                            if ui.button("Minimize").clicked() {
+                                window.show_minimized();
+                            }
 
-                                if ui.button("Maximize").clicked() {
-                                    window.show_maximized();
-                                }
+                            if ui.button("Maximize").clicked() {
+                                window.show_maximized();
+                            }
 
-                                ui.label(title);
-                            });
+                            ui.label(title);
                         });
+                    });
                 });
         });
     }

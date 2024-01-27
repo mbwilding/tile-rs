@@ -2,9 +2,10 @@ use crate::keys::Keyboard;
 use crate::windows_defer_pos_handle::WindowsDeferPosHandle;
 use crate::windows_window::WindowsWindow;
 use anyhow::Result;
+use lazy_static::lazy_static;
 use log::{debug, error, info, trace};
 use std::collections::HashMap;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use windows::core::PCWSTR;
 use windows::Win32::Foundation::{BOOL, HMODULE, HWND, LPARAM, LRESULT, TRUE, WPARAM};
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
@@ -17,6 +18,11 @@ use windows::Win32::UI::WindowsAndMessaging::{
     EVENT_SYSTEM_MOVESIZEEND, EVENT_SYSTEM_MOVESIZESTART, MSG, WH_KEYBOARD_LL, WH_MOUSE_LL,
     WINEVENT_OUTOFCONTEXT, WM_LBUTTONUP,
 };
+
+lazy_static! {
+    pub static ref INSTANCE: Arc<Mutex<WindowsManager>> =
+        Arc::new(Mutex::new(WindowsManager::default()));
+}
 
 lazy_static::lazy_static! {
     static ref WINDOW_COLLECTOR: Mutex<Vec<HWND>> = Mutex::new(Vec::new());
@@ -103,7 +109,7 @@ impl WindowsManager {
 
         info!("Initialized hooks");
 
-        let mut windows: Vec<isize> = vec![]; // TODO
+        let mut windows: Vec<isize> = vec![];
 
         let _ = unsafe {
             EnumWindows(
@@ -118,6 +124,7 @@ impl WindowsManager {
                 self.register_window(hwnd.0);
             }
         }
+        WINDOW_COLLECTOR.lock().unwrap().clear();
 
         let mut message = MSG::default();
 
@@ -223,32 +230,38 @@ impl WindowsManager {
         _h_win_event_hook: HWINEVENTHOOK,
         event_type: u32,
         window_handle: HWND,
-        _id_object: i32,
-        _id_child: i32,
+        id_object: i32,
+        id_child: i32,
         _id_event_thread: u32,
         _dwms_event_time: u32,
     ) {
-        if window_handle.0 == 0 {
-            // trace!("event_callback | NULL WINDOW HANDLE");
-            return;
-        }
+        if Self::event_window_is_valid(id_child, id_object, window_handle) {
+            let hwnd = window_handle.0;
+            let mut instance = INSTANCE.lock().unwrap();
 
-        match event_type {
-            EVENT_OBJECT_DESTROY => trace!("event_callback | EVENT_OBJECT_DESTROY"),
-            EVENT_OBJECT_SHOW => trace!("event_callback | EVENT_OBJECT_SHOW"),
-            EVENT_OBJECT_CLOAKED => trace!("event_callback | EVENT_OBJECT_CLOAKED"),
-            EVENT_OBJECT_UNCLOAKED => trace!("event_callback | EVENT_OBJECT_UNCLOAKED"),
-            EVENT_SYSTEM_MINIMIZESTART => trace!("event_callback | EVENT_SYSTEM_MINIMIZESTART"),
-            EVENT_SYSTEM_MINIMIZEEND => trace!("event_callback | EVENT_SYSTEM_MINIMIZEEND"),
-            EVENT_SYSTEM_MOVESIZESTART => trace!("event_callback | EVENT_SYSTEM_MOVESIZESTART"),
-            EVENT_SYSTEM_MOVESIZEEND => trace!("event_callback | EVENT_SYSTEM_MOVESIZEEND"),
-            EVENT_SYSTEM_FOREGROUND => trace!("event_callback | EVENT_SYSTEM_FOREGROUND"),
-            EVENT_OBJECT_LOCATIONCHANGE => trace!("event_callback | EVENT_OBJECT_LOCATIONCHANGE"),
-            _ => trace!("event_callback | event_type: UNKNOWN({:?})", event_type),
+            match event_type {
+                EVENT_OBJECT_SHOW => instance.register_window(hwnd),
+                EVENT_OBJECT_DESTROY => instance.unregister_window(hwnd),
+                EVENT_OBJECT_CLOAKED => trace!("event_callback | EVENT_OBJECT_CLOAKED"),
+                EVENT_OBJECT_UNCLOAKED => trace!("event_callback | EVENT_OBJECT_UNCLOAKED"),
+                EVENT_SYSTEM_MINIMIZESTART => trace!("event_callback | EVENT_SYSTEM_MINIMIZESTART"),
+                EVENT_SYSTEM_MINIMIZEEND => trace!("event_callback | EVENT_SYSTEM_MINIMIZEEND"),
+                EVENT_SYSTEM_FOREGROUND => trace!("event_callback | EVENT_SYSTEM_FOREGROUND"),
+                EVENT_SYSTEM_MOVESIZESTART => trace!("event_callback | EVENT_SYSTEM_MOVESIZESTART"),
+                EVENT_SYSTEM_MOVESIZEEND => trace!("event_callback | EVENT_SYSTEM_MOVESIZEEND"),
+                EVENT_OBJECT_LOCATIONCHANGE => {
+                    trace!("event_callback | EVENT_OBJECT_LOCATIONCHANGE")
+                }
+                _ => trace!("event_callback | event_type: UNKNOWN({:?})", event_type),
+            }
         }
     }
 
-    pub fn register_window(&mut self, handle: isize) {
+    fn event_window_is_valid(id_child: i32, id_object: i32, window_handle: HWND) -> bool {
+        id_child == 0 && id_object == 0 && window_handle.0 != 0
+    }
+
+    fn register_window(&mut self, handle: isize) {
         if self.windows.contains_key(&handle) {
             debug!(
                 "register_window | handle: 0x{:X} already registered",
@@ -266,5 +279,17 @@ impl WindowsManager {
                 None
             }
         };
+    }
+
+    fn unregister_window(&mut self, handle: isize) {
+        if !self.windows.contains_key(&handle) {
+            debug!("unregister_window | handle: 0x{:X} not registered", handle);
+            return;
+        }
+
+        debug!("unregister_window | handle: 0x{:X} registered", handle);
+
+        self.windows.remove(&handle);
+        // TODO: HandleWindowRemove(window);
     }
 }
