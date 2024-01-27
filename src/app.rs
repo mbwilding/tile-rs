@@ -90,6 +90,38 @@ impl eframe::App for App {
                 ui.label("Floating");
                 ui.label(self.windows_manager.floating.len().to_string());
             });
+
+            ui.separator();
+
+            egui::containers::collapsing_header::CollapsingHeader::new("Windows")
+                .default_open(true)
+                .show(ui, |ui| {
+                    self.windows_manager
+                        .windows
+                        .iter_mut()
+                        .for_each(|(_, window)| {
+                            ui.horizontal(|ui| {
+                                let mut title = window.title();
+                                if title.is_empty() {
+                                    title.push('_');
+                                }
+
+                                if ui.button("Normal").clicked() {
+                                    window.show_normal();
+                                }
+
+                                if ui.button("Minimize").clicked() {
+                                    window.show_minimized();
+                                }
+
+                                if ui.button("Maximize").clicked() {
+                                    window.show_maximized();
+                                }
+
+                                ui.label(title);
+                            });
+                        });
+                });
         });
     }
 
