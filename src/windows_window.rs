@@ -22,7 +22,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
     SW_SHOWNOACTIVATE, WM_SYSCOMMAND,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Eq, Hash, PartialEq)]
 pub struct WindowsWindow {
     // Private
     handle: isize,

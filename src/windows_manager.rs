@@ -8,13 +8,16 @@ use windows::core::PCWSTR;
 use windows::Win32::Foundation::{BOOL, HMODULE, HWND, LPARAM, LRESULT, TRUE, WPARAM};
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::UI::Accessibility::{SetWinEventHook, UnhookWinEvent, HWINEVENTHOOK};
+use windows::Win32::UI::Input::KeyboardAndMouse::{
+    GetAsyncKeyState, VK_CONTROL, VK_LWIN, VK_MENU, VK_RWIN, VK_SHIFT,
+};
 use windows::Win32::UI::WindowsAndMessaging::{
     BeginDeferWindowPos, CallNextHookEx, DispatchMessageW, EnumWindows, GetMessageW,
     SetWindowsHookExW, TranslateMessage, UnhookWindowsHookEx, EVENT_OBJECT_CLOAKED,
     EVENT_OBJECT_DESTROY, EVENT_OBJECT_LOCATIONCHANGE, EVENT_OBJECT_SHOW, EVENT_OBJECT_UNCLOAKED,
     EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_MINIMIZEEND, EVENT_SYSTEM_MINIMIZESTART,
-    EVENT_SYSTEM_MOVESIZEEND, EVENT_SYSTEM_MOVESIZESTART, MSG, WH_MOUSE_LL, WINEVENT_OUTOFCONTEXT,
-    WM_LBUTTONUP,
+    EVENT_SYSTEM_MOVESIZEEND, EVENT_SYSTEM_MOVESIZESTART, KBDLLHOOKSTRUCT, MSG, WH_KEYBOARD_LL,
+    WH_MOUSE_LL, WINEVENT_OUTOFCONTEXT, WM_KEYDOWN, WM_LBUTTONUP, WM_SYSKEYDOWN,
 };
 
 lazy_static::lazy_static! {
@@ -29,7 +32,7 @@ pub struct WindowsManager {
 
 impl WindowsManager {
     pub fn init(&mut self) {
-        info!("Initializing hook");
+        info!("Initializing hooks");
 
         let module_handle = unsafe {
             GetModuleHandleW(PCWSTR::null()).unwrap_or_else(|e| {
@@ -82,12 +85,25 @@ impl WindowsManager {
         let _event_mouse = unsafe {
             SetWindowsHookExW(WH_MOUSE_LL, Some(Self::mouse_callback), module_handle, 0)
                 .unwrap_or_else(|e| {
-                    error!("Failed SetWindowsHookExW: {:?}", e);
+                    error!("Failed SetWindowsHookExW[Mouse]: {:?}", e);
                     std::process::exit(69);
                 })
         };
 
-        info!("Initialized hook");
+        let _event_keyboard = unsafe {
+            SetWindowsHookExW(
+                WH_KEYBOARD_LL,
+                Some(Self::keyboard_callback),
+                module_handle,
+                0,
+            )
+            .unwrap_or_else(|e| {
+                error!("Failed SetWindowsHookExW[Keyboard]: {:?}", e);
+                std::process::exit(69);
+            })
+        };
+
+        info!("Initialized hooks");
 
         let mut windows: Vec<isize> = vec![]; // TODO
 
@@ -149,6 +165,21 @@ impl WindowsManager {
         Ok(WindowsDeferPosHandle::new(info))
     }
 
+    pub fn toggle_focused_window_tiling(&mut self) {
+        let window = self.windows.values().find(|w| w.is_focused());
+
+        if let Some(window) = window {
+            if self.floating.contains_key(window) {
+                self.floating.remove(window);
+                // TODO: HandleWindowAdd(window, false);
+            } else {
+                *self.floating.get_mut(window).unwrap() = true; // TODO: Fix unwrap
+                                                                // TODO: HandleWindowRemove(window);
+                window.bring_to_top();
+            }
+        }
+    }
+
     unsafe fn register_event_hook(
         event_min: u32,
         event_max: u32,
@@ -166,7 +197,7 @@ impl WindowsManager {
     }
 
     unsafe extern "system" fn mouse_callback(
-        code: i32,
+        n_code: i32,
         w_param: WPARAM,
         l_param: LPARAM,
     ) -> LRESULT {
@@ -175,7 +206,35 @@ impl WindowsManager {
             // TODO: HandleWindowMoveEnd();
         }
 
-        CallNextHookEx(None, code, w_param, l_param)
+        CallNextHookEx(None, n_code, w_param, l_param)
+    }
+
+    unsafe extern "system" fn keyboard_callback(
+        n_code: i32,
+        w_param: WPARAM,
+        l_param: LPARAM,
+    ) -> LRESULT {
+        if n_code >= 0 {
+            match w_param.0 as u32 {
+                WM_KEYDOWN | WM_SYSKEYDOWN => {
+                    let capture = &*(l_param.0 as *const KBDLLHOOKSTRUCT);
+                    debug!(
+                        "keyboard_callback | vk_code: 0x{:X} | key: {:?}",
+                        capture.vkCode,
+                        crate::keys::VirtualKey::from_vk(capture.vkCode)
+                    );
+
+                    let shift_pressed = GetAsyncKeyState(VK_SHIFT.0 as i32) & (1 << 15) != 0;
+                    let ctrl_pressed = GetAsyncKeyState(VK_CONTROL.0 as i32) & (1 << 15) != 0;
+                    let alt_pressed = GetAsyncKeyState(VK_MENU.0 as i32) & (1 << 15) != 0;
+                    let win_pressed = GetAsyncKeyState(VK_LWIN.0 as i32) & (1 << 15) != 0
+                        || GetAsyncKeyState(VK_RWIN.0 as i32) & (1 << 15) != 0;
+                }
+                _ => {}
+            }
+        }
+
+        CallNextHookEx(None, n_code, w_param, l_param)
     }
 
     unsafe extern "system" fn event_callback(

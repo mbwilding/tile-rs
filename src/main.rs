@@ -1,4 +1,5 @@
 mod app;
+mod keys;
 mod single;
 mod structs;
 mod win32_helpers;
