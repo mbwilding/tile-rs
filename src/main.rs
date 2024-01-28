@@ -3,6 +3,9 @@
 
 mod app;
 mod keys;
+mod monitor;
+mod native_monitor_container;
+mod screen;
 mod single;
 mod structs;
 mod win32_helpers;
@@ -13,11 +16,14 @@ mod windows_manager;
 mod windows_window;
 
 use eframe::egui;
+use log::info;
 
 pub const APP_NAME: &str = "Tile-RS";
 
 fn main() -> eframe::Result<()> {
     env_logger::init();
+    info!("Starting Tile-RS");
+
     single::check();
 
     let native_options = eframe::NativeOptions {

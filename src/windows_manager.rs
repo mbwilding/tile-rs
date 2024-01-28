@@ -4,6 +4,7 @@ use crate::windows_window::WindowsWindow;
 use anyhow::Result;
 use lazy_static::lazy_static;
 use log::{debug, error, info, trace};
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use windows::core::PCWSTR;
@@ -24,14 +25,12 @@ lazy_static! {
         Arc::new(Mutex::new(WindowsManager::default()));
 }
 
-lazy_static::lazy_static! {
-    static ref WINDOW_COLLECTOR: Mutex<Vec<HWND>> = Mutex::new(Vec::new());
-}
-
 #[derive(Debug, Default)]
 pub struct WindowsManager {
     pub windows: HashMap<isize, WindowsWindow>,
-    pub floating: HashMap<WindowsWindow, bool>,
+    pub floating: HashMap<isize, bool>,
+    mouse_move_lock: Mutex<()>,
+    mouse_move_window: Option<isize>,
 }
 
 impl WindowsManager {
@@ -109,22 +108,21 @@ impl WindowsManager {
 
         info!("Initialized hooks");
 
-        let mut windows: Vec<isize> = vec![];
+        let mut windows: Vec<HWND> = vec![];
 
         let _ = unsafe {
             EnumWindows(
                 Some(Self::enum_windows_callback),
-                LPARAM(&mut windows as *mut Vec<isize> as isize),
+                LPARAM(&mut windows as *mut Vec<HWND> as isize),
             )
             .ok()
         };
 
-        for hwnd in WINDOW_COLLECTOR.lock().unwrap().iter() {
-            if crate::win32_helpers::is_app_window(hwnd.to_owned()) {
-                self.register_window(hwnd.0);
+        for hwnd in windows.into_iter() {
+            if crate::win32_helpers::is_app_window(hwnd) {
+                self.register_window(hwnd);
             }
         }
-        WINDOW_COLLECTOR.lock().unwrap().clear();
 
         let mut message = MSG::default();
 
@@ -157,9 +155,9 @@ impl WindowsManager {
         });
     }
 
-    unsafe extern "system" fn enum_windows_callback(hwnd: HWND, _: LPARAM) -> BOOL {
-        let mut collector = WINDOW_COLLECTOR.lock().unwrap();
-        collector.push(hwnd);
+    unsafe extern "system" fn enum_windows_callback(window: HWND, userdata: LPARAM) -> BOOL {
+        let windows = &mut *(userdata.0 as *mut Vec<HWND>);
+        windows.push(window);
 
         TRUE
     }
@@ -174,12 +172,14 @@ impl WindowsManager {
         let window = self.windows.values().find(|w| w.is_focused());
 
         if let Some(window) = window {
-            if self.floating.contains_key(window) {
-                self.floating.remove(window);
+            let handle = window.handle();
+
+            if self.floating.contains_key(&handle) {
+                self.floating.remove(&handle);
                 // TODO: HandleWindowAdd(window, false);
             } else {
-                *self.floating.get_mut(window).unwrap() = true; // TODO: Fix unwrap
-                                                                // TODO: HandleWindowRemove(window);
+                *self.floating.get_mut(&handle).unwrap() = true; // TODO: Fix unwrap
+                                                                 // TODO: HandleWindowRemove(window);
                 window.bring_to_top();
             }
         }
@@ -229,30 +229,33 @@ impl WindowsManager {
     unsafe extern "system" fn event_callback(
         _h_win_event_hook: HWINEVENTHOOK,
         event_type: u32,
-        window_handle: HWND,
+        hwnd: HWND,
         id_object: i32,
         id_child: i32,
         _id_event_thread: u32,
         _dwms_event_time: u32,
     ) {
-        if Self::event_window_is_valid(id_child, id_object, window_handle) {
-            let hwnd = window_handle.0;
+        if Self::event_window_is_valid(id_child, id_object, hwnd) {
             let mut instance = INSTANCE.lock().unwrap();
 
             match event_type {
                 EVENT_OBJECT_SHOW => instance.register_window(hwnd),
                 EVENT_OBJECT_DESTROY => instance.unregister_window(hwnd),
-                EVENT_OBJECT_CLOAKED => trace!("event_callback | EVENT_OBJECT_CLOAKED"),
-                EVENT_OBJECT_UNCLOAKED => trace!("event_callback | EVENT_OBJECT_UNCLOAKED"),
-                EVENT_SYSTEM_MINIMIZESTART => trace!("event_callback | EVENT_SYSTEM_MINIMIZESTART"),
-                EVENT_SYSTEM_MINIMIZEEND => trace!("event_callback | EVENT_SYSTEM_MINIMIZEEND"),
-                EVENT_SYSTEM_FOREGROUND => trace!("event_callback | EVENT_SYSTEM_FOREGROUND"),
-                EVENT_SYSTEM_MOVESIZESTART => trace!("event_callback | EVENT_SYSTEM_MOVESIZESTART"),
-                EVENT_SYSTEM_MOVESIZEEND => trace!("event_callback | EVENT_SYSTEM_MOVESIZEEND"),
-                EVENT_OBJECT_LOCATIONCHANGE => {
-                    trace!("event_callback | EVENT_OBJECT_LOCATIONCHANGE")
+                EVENT_OBJECT_CLOAKED => instance.update_window(hwnd, WindowUpdateType::Hide),
+                EVENT_OBJECT_UNCLOAKED => instance.update_window(hwnd, WindowUpdateType::Show),
+                EVENT_SYSTEM_MINIMIZESTART => {
+                    instance.update_window(hwnd, WindowUpdateType::MinimizeStart)
                 }
-                _ => trace!("event_callback | event_type: UNKNOWN({:?})", event_type),
+                EVENT_SYSTEM_MINIMIZEEND => {
+                    instance.update_window(hwnd, WindowUpdateType::MinimizeEnd)
+                }
+                EVENT_SYSTEM_FOREGROUND => {
+                    instance.update_window(hwnd, WindowUpdateType::Foreground)
+                }
+                EVENT_SYSTEM_MOVESIZESTART => instance.start_move_window(hwnd),
+                EVENT_SYSTEM_MOVESIZEEND => instance.end_move_window(hwnd),
+                EVENT_OBJECT_LOCATIONCHANGE => {}
+                _ => error!("event_callback | event_type: UNKNOWN({:?})", event_type),
             }
         }
     }
@@ -261,19 +264,18 @@ impl WindowsManager {
         id_child == 0 && id_object == 0 && window_handle.0 != 0
     }
 
-    fn register_window(&mut self, handle: isize) {
-        if self.windows.contains_key(&handle) {
-            debug!(
-                "register_window | handle: 0x{:X} already registered",
-                handle
-            );
+    fn register_window(&mut self, hwnd: HWND) {
+        let hwnd = hwnd.0;
+
+        if self.windows.contains_key(&hwnd) {
+            debug!("register_window | handle: 0x{:X} already registered", hwnd);
             return;
         }
 
-        debug!("register_window | handle: 0x{:X} not registered", handle);
+        debug!("register_window | handle: 0x{:X} not registered", hwnd);
 
-        match WindowsWindow::new(handle) {
-            Ok(window) => self.windows.insert(handle, window),
+        match WindowsWindow::new(hwnd) {
+            Ok(window) => self.windows.insert(hwnd, window),
             Err(e) => {
                 error!("register_window | Failed to register window: {:?}", e);
                 None
@@ -281,15 +283,103 @@ impl WindowsManager {
         };
     }
 
-    fn unregister_window(&mut self, handle: isize) {
-        if !self.windows.contains_key(&handle) {
-            debug!("unregister_window | handle: 0x{:X} not registered", handle);
+    fn unregister_window(&mut self, hwnd: HWND) {
+        let hwnd = hwnd.0;
+
+        if !self.windows.contains_key(&hwnd) {
+            debug!("unregister_window | handle: 0x{:X} not registered", hwnd);
             return;
         }
 
-        debug!("unregister_window | handle: 0x{:X} registered", handle);
+        debug!("unregister_window | handle: 0x{:X} registered", hwnd);
 
-        self.windows.remove(&handle);
+        self.windows.remove(&hwnd);
         // TODO: HandleWindowRemove(window);
     }
+
+    fn update_window(&mut self, hwnd: HWND, update_type: WindowUpdateType) {
+        let handle = hwnd.0;
+
+        if update_type == WindowUpdateType::Show && self.windows.contains_key(&handle) {
+            if let Some(_window) = self.windows.get(&handle) {};
+            // TODO: WindowUpdated?.Invoke(window, update_type);
+        } else if update_type == WindowUpdateType::Show {
+            self.register_window(hwnd);
+        } else if update_type == WindowUpdateType::Hide && self.windows.contains_key(&handle) {
+            if let Some(window) = self.windows.get(&handle) {
+                if !window.did_manual_hide() {
+                    self.unregister_window(hwnd);
+                } else {
+                    // TODO: WindowUpdated?.Invoke(window, update_type);
+                }
+            };
+        } else if self.windows.contains_key(&handle) {
+            if let Some(_window) = self.windows.get(&handle) {};
+            // TODO: WindowUpdated?.Invoke(window, update_type);
+        }
+    }
+
+    fn start_move_window(&mut self, hwnd: HWND) {
+        let handle = hwnd.0;
+
+        if self.windows.contains_key(&handle) {
+            self.handle_window_move_start(handle);
+            // TODO: WindowUpdated?.Invoke(window, WindowUpdateType.MoveStart);
+            debug!("start_move_window | handle: 0x{:X}", handle);
+        }
+    }
+
+    fn end_move_window(&mut self, hwnd: HWND) {
+        let handle = hwnd.0;
+
+        if self.windows.contains_key(&handle) {
+            self.handle_window_move_end();
+            // TODO: WindowUpdated?.Invoke(window, WindowUpdateType.MoveEnd);
+            debug!("end_move_window | handle: 0x{:X}", handle);
+        }
+    }
+
+    fn window_move(&self, hwnd: isize) {
+        if self.windows.contains_key(&hwnd) {
+            if let Some(_window) = self.windows.get(&hwnd) {
+                // TODO: WindowUpdated?.Invoke(_windows[handle], WindowUpdateType.Move);
+            }
+        }
+    }
+
+    fn handle_window_move_start(&mut self, handle: isize) {
+        if let Some(current_handle) = self.mouse_move_window {
+            if let Some(window) = self.windows.get_mut(&current_handle) {
+                window.is_mouse_moving = false;
+            }
+        }
+
+        self.mouse_move_window = Some(handle);
+
+        if let Some(window) = self.windows.get_mut(&handle) {
+            window.is_mouse_moving = true;
+        }
+    }
+
+    fn handle_window_move_end(&mut self) {
+        let _lock = self.mouse_move_lock.lock().unwrap();
+        if let Some(ref mut handle) = self.mouse_move_window {
+            if let Some(window) = self.windows.get_mut(&handle) {
+                window.is_mouse_moving = false;
+            }
+            self.mouse_move_window = None;
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub enum WindowUpdateType {
+    Show,
+    Hide,
+    MinimizeStart,
+    MinimizeEnd,
+    Foreground,
+    MoveStart,
+    MoveEnd,
+    Move,
 }
