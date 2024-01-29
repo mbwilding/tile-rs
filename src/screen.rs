@@ -57,7 +57,7 @@ impl Screen {
             //        .device_name,
             //);
 
-            let mut info = MONITORINFOEXW {
+            let info = MONITORINFOEXW {
                 monitorInfo: MONITORINFO {
                     cbSize: size_of::<MONITORINFOEXW>() as u32,
                     ..Default::default()
