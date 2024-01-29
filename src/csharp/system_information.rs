@@ -1,4 +1,4 @@
-use crate::csharp::structs::Rectangle;
+use crate::csharp::structs::{Rectangle, Size};
 use std::ffi::c_void;
 use windows::Win32::Foundation::RECT;
 use windows::Win32::UI::WindowsAndMessaging::{
@@ -7,14 +7,8 @@ use windows::Win32::UI::WindowsAndMessaging::{
     SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS,
 };
 
-#[derive(Debug)]
-pub struct Size {
-    pub width: i32,
-    pub height: i32,
-}
-
 pub fn multi_monitor_support() -> bool {
-    (unsafe { GetSystemMetrics(SM_CMONITORS) } != 0)
+    unsafe { GetSystemMetrics(SM_CMONITORS) != 0 }
 }
 
 pub fn primary_monitor_size() -> Size {
