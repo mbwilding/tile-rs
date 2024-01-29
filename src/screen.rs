@@ -41,22 +41,10 @@ impl Screen {
         let mut bit_depth = 0;
 
         if !multi_monitor_support() || monitor == PRIMARY_MONITOR {
-            // Single monitor system
             bounds = system_information::virtual_screen();
             primary = true;
             device_name.push_str("DISPLAY");
         } else {
-            // Multi monitor system
-
-            // TODO: [Wait for update in Windows crate for ExW]
-            //device_name.push_str(
-            //    &Self::all_screens()
-            //        .iter()
-            //        .find(|s| s.hmonitor == monitor)
-            //        .unwrap()
-            //        .device_name,
-            //);
-
             let info = MONITORINFOEXW {
                 monitorInfo: MONITORINFO {
                     cbSize: size_of::<MONITORINFOEXW>() as u32,

@@ -17,15 +17,12 @@ mod windows_defer_pos_handle;
 mod windows_manager;
 mod windows_window;
 
-use crate::screen::Screen;
 use eframe::egui;
 use log::info;
 
 pub const APP_NAME: &str = "Tile-RS";
 
 fn main() -> eframe::Result<()> {
-    Screen::all_screens();
-
     env_logger::init();
     info!("Starting Tile-RS");
     single::check();
