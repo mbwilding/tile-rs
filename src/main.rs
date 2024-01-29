@@ -3,6 +3,7 @@
 
 mod app;
 mod keys;
+mod layout_engines;
 mod monitor;
 mod native_monitor_container;
 mod screen;
