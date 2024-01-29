@@ -1,3 +1,4 @@
+use crate::layout_engines::LayoutEngine;
 use crate::window_location::WindowLocation;
 use crate::window_state::WindowState;
 use crate::windows_window::WindowsWindow;
@@ -28,24 +29,19 @@ impl DwindleLayoutEngine {
         }
     }
 
-    pub fn with_params(
-        num_in_primary: i32,
-        primary_percent: f64,
-        primary_percent_increment: f64,
-    ) -> DwindleLayoutEngine {
-        DwindleLayoutEngine {
-            num_in_primary,
-            primary_percent,
-            primary_percent_increment,
-            num_in_primary_offset: 0,
-            primary_percent_offset: 0.0,
-            name: "dwindle".to_string(),
-        }
+    pub fn get_num_in_primary(&self) -> i32 {
+        self.num_in_primary + self.num_in_primary_offset
+    }
+}
+
+impl LayoutEngine for DwindleLayoutEngine {
+    fn name(&self) -> &str {
+        &self.name
     }
 
-    pub fn calc_layout(
-        &self,
-        windows: &Vec<&WindowsWindow>,
+    fn calc_layout(
+        &mut self,
+        windows: &[WindowsWindow],
         space_width: i32,
         space_height: i32,
     ) -> Vec<WindowLocation> {
@@ -119,29 +115,25 @@ impl DwindleLayoutEngine {
         list
     }
 
-    pub fn shrink_primary_area(&mut self) {
+    fn shrink_primary_area(&mut self) {
         self.primary_percent_offset -= self.primary_percent_increment;
     }
 
-    pub fn expand_primary_area(&mut self) {
+    fn expand_primary_area(&mut self) {
         self.primary_percent_offset += self.primary_percent_increment;
     }
 
-    pub fn reset_primary_area(&mut self) {
+    fn reset_primary_area(&mut self) {
         self.primary_percent_offset = 0.0;
     }
 
-    pub fn increment_num_in_primary(&mut self) {
+    fn increment_num_in_primary(&mut self) {
         self.num_in_primary_offset += 1;
     }
 
-    pub fn decrement_num_in_primary(&mut self) {
+    fn decrement_num_in_primary(&mut self) {
         if self.get_num_in_primary() > 1 {
             self.num_in_primary_offset -= 1;
         }
-    }
-
-    fn get_num_in_primary(&self) -> i32 {
-        self.num_in_primary + self.num_in_primary_offset
     }
 }

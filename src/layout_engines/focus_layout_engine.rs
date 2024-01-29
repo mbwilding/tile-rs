@@ -1,3 +1,4 @@
+use crate::layout_engines::LayoutEngine;
 use crate::window_location::WindowLocation;
 use crate::window_state::WindowState;
 use crate::windows_window::WindowsWindow;
@@ -8,7 +9,7 @@ pub struct FocusLayoutEngine {
     primary_percent_increment: f64,
     num_in_primary_offset: i32,
     primary_percent_offset: f64,
-    name: String, // Assuming name needs to be mutable
+    name: String,
 }
 
 impl FocusLayoutEngine {
@@ -23,24 +24,31 @@ impl FocusLayoutEngine {
         }
     }
 
-    pub fn with_params(
-        num_in_primary: i32,
-        primary_percent: f64,
-        primary_percent_increment: f64,
-    ) -> FocusLayoutEngine {
-        FocusLayoutEngine {
-            num_in_primary,
-            primary_percent,
-            primary_percent_increment,
-            num_in_primary_offset: 0,
-            primary_percent_offset: 0.0,
-            name: "focus".to_string(),
-        }
+    fn get_num_in_primary(&self) -> i32 {
+        self.num_in_primary + self.num_in_primary_offset
     }
 
-    pub fn calc_layout(
-        &self,
-        windows: &Vec<&WindowsWindow>,
+    fn get_nb_left_windows(&self, num_windows: i32, num_in_primary: i32) -> i32 {
+        (num_windows - num_in_primary + 1) / 2
+    }
+
+    fn get_nb_right_windows(&self, num_windows: i32, num_in_primary: i32) -> i32 {
+        (num_windows - num_in_primary) / 2
+    }
+
+    fn get_secondary_height(&self, space_height: i32, nb_windows: i32) -> i32 {
+        space_height / std::cmp::max(nb_windows, 1)
+    }
+}
+
+impl LayoutEngine for FocusLayoutEngine {
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn calc_layout(
+        &mut self,
+        windows: &[WindowsWindow],
         space_width: i32,
         space_height: i32,
     ) -> Vec<WindowLocation> {
@@ -102,41 +110,25 @@ impl FocusLayoutEngine {
         list
     }
 
-    fn get_nb_left_windows(&self, num_windows: i32, num_in_primary: i32) -> i32 {
-        (num_windows - num_in_primary + 1) / 2
-    }
-
-    fn get_nb_right_windows(&self, num_windows: i32, num_in_primary: i32) -> i32 {
-        (num_windows - num_in_primary) / 2
-    }
-
-    fn get_secondary_height(&self, space_height: i32, nb_windows: i32) -> i32 {
-        space_height / std::cmp::max(nb_windows, 1)
-    }
-
-    pub fn shrink_primary_area(&mut self) {
+    fn shrink_primary_area(&mut self) {
         self.primary_percent_offset -= self.primary_percent_increment;
     }
 
-    pub fn expand_primary_area(&mut self) {
+    fn expand_primary_area(&mut self) {
         self.primary_percent_offset += self.primary_percent_increment;
     }
 
-    pub fn reset_primary_area(&mut self) {
+    fn reset_primary_area(&mut self) {
         self.primary_percent_offset = 0.0;
     }
 
-    pub fn increment_num_in_primary(&mut self) {
+    fn increment_num_in_primary(&mut self) {
         self.num_in_primary_offset += 1;
     }
 
-    pub fn decrement_num_in_primary(&mut self) {
+    fn decrement_num_in_primary(&mut self) {
         if self.get_num_in_primary() > 1 {
             self.num_in_primary_offset -= 1;
         }
-    }
-
-    fn get_num_in_primary(&self) -> i32 {
-        self.num_in_primary + self.num_in_primary_offset
     }
 }

@@ -35,7 +35,7 @@ const IGNORE_WINDOW_CLASSES: [&str; 8] = [
 
 const IGNORE_WINDOW_TITLES: [&str; 1] = ["Windows Input Experience"];
 
-#[derive(Debug, Eq, Hash, PartialEq)]
+#[derive(Debug, Eq, Hash, PartialEq, Clone)]
 pub struct WindowsWindow {
     // Private
     handle: isize,
