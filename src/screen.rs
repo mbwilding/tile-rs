@@ -1,7 +1,6 @@
 use crate::structs::Rectangle;
 use crate::system_information;
 use crate::system_information::multi_monitor_support;
-use eframe::egui::mutex;
 use std::ffi::OsStr;
 use std::mem::size_of;
 use std::os::windows::ffi::OsStrExt;
@@ -27,16 +26,16 @@ pub struct Screen {
 }
 
 impl Screen {
+    // TODO RECT / Rectangle and setting variables to struct
     pub fn constructor(&mut self, monitor: isize, hdc: Option<HDC>) {
         let mut screen_dc = hdc;
 
-        let mut bounds: RECT;
         let mut primary = false;
         let mut device_name = String::new();
 
         if multi_monitor_support() || monitor == PRIMARY_MONITOR {
             // Single monitor system
-            bounds = system_information::virtual_screen();
+            self.bounds = system_information::virtual_screen();
             primary = true;
             device_name.push_str("DISPLAY");
         } else {
@@ -52,7 +51,7 @@ impl Screen {
             // TODO: Call doesn't fill szDevice as in only takes mutable MonitorInfo
             unsafe { GetMonitorInfoW(HMONITOR(monitor), &mut info.monitorInfo) };
 
-            bounds = info.monitorInfo.rcMonitor;
+            self.bounds = Rectangle::from(info.monitorInfo.rcMonitor);
             primary = (info.monitorInfo.dwFlags & MONITORINFOF_PRIMARY) != 0;
 
             device_name.push_str(&String::from_utf16_lossy(&info.szDevice));
@@ -71,10 +70,11 @@ impl Screen {
 
         self.hmonitor = HMONITOR(monitor);
 
-        let mut bit_depth = unsafe { GetDeviceCaps(hdc.unwrap(), BITSPIXEL) };
-        bit_depth *= unsafe { GetDeviceCaps(hdc.unwrap(), PLANES) };
-
-        self.bit_depth = bit_depth;
+        if let Some(hdc) = hdc {
+            let mut bit_depth = unsafe { GetDeviceCaps(hdc, BITSPIXEL) };
+            bit_depth *= unsafe { GetDeviceCaps(hdc, PLANES) };
+            self.bit_depth = bit_depth;
+        }
 
         if hdc != screen_dc {
             if let Some(screen_dc) = screen_dc {
@@ -126,18 +126,5 @@ impl Screen {
         }
 
         TRUE
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_all_screens() {
-        let screen = Screen { screens: None };
-        let screens = screen.all_screens();
-
-        assert!(screens.is_empty() || !screens.is_empty());
     }
 }

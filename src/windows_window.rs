@@ -122,7 +122,7 @@ impl WindowsWindow {
     pub fn location(&self) -> WindowLocation {
         let mut rect: RECT = RECT::default();
         unsafe {
-            GetWindowRect(self.hwnd(), &mut rect).unwrap(); // TODO: Look into this
+            let _ = GetWindowRect(self.hwnd(), &mut rect); // TODO: Look into this
         }
 
         let mut state = WindowState::Normal;

@@ -1,3 +1,5 @@
+use windows::Win32::Foundation::RECT;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Point {
     pub x: i32,
@@ -137,5 +139,16 @@ impl Rectangle {
     fn offset(&mut self, dx: i32, dy: i32) {
         self.x += dx;
         self.y += dy;
+    }
+}
+
+impl From<RECT> for Rectangle {
+    fn from(rect: RECT) -> Self {
+        Self {
+            x: rect.left,
+            y: rect.top,
+            width: rect.right - rect.left,
+            height: rect.bottom - rect.top,
+        }
     }
 }

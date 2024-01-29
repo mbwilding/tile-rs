@@ -1,5 +1,3 @@
-use windows::Win32::UI::WindowsAndMessaging::{GetSystemMetrics, SM_CMONITORS};
-
 #[derive(Debug)]
 pub struct Monitor {
     pub index: u32,
