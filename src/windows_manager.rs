@@ -4,7 +4,6 @@ use crate::windows_window::WindowsWindow;
 use anyhow::Result;
 use lazy_static::lazy_static;
 use log::{debug, error, info, trace};
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use windows::core::PCWSTR;
@@ -120,7 +119,7 @@ impl WindowsManager {
 
         for hwnd in windows.into_iter() {
             if crate::win32_helpers::is_app_window(hwnd) {
-                self.register_window(hwnd);
+                self.register_window(hwnd.0);
             }
         }
 
@@ -155,9 +154,9 @@ impl WindowsManager {
         });
     }
 
-    unsafe extern "system" fn enum_windows_callback(window: HWND, userdata: LPARAM) -> BOOL {
+    unsafe extern "system" fn enum_windows_callback(hwnd: HWND, userdata: LPARAM) -> BOOL {
         let windows = &mut *(userdata.0 as *mut Vec<HWND>);
-        windows.push(window);
+        windows.push(hwnd);
 
         TRUE
     }
@@ -169,18 +168,26 @@ impl WindowsManager {
     }
 
     pub fn toggle_focused_window_tiling(&mut self) {
-        let window = self.windows.values().find(|w| w.is_focused());
+        let hwnd_option = self
+            .windows
+            .values()
+            .find(|w| w.is_focused())
+            .map(|window| window.handle());
 
-        if let Some(window) = window {
-            let handle = window.handle();
-
-            if self.floating.contains_key(&handle) {
-                self.floating.remove(&handle);
-                // TODO: HandleWindowAdd(window, false);
+        if let Some(hwnd) = hwnd_option {
+            if self.floating.contains_key(&hwnd) {
+                self.floating.remove(&hwnd);
+                self.handle_window_add(hwnd, false);
             } else {
-                *self.floating.get_mut(&handle).unwrap() = true; // TODO: Fix unwrap
-                                                                 // TODO: HandleWindowRemove(window);
-                window.bring_to_top();
+                if let Some(floating) = self.floating.get_mut(&hwnd) {
+                    *floating = true; // TODO: Check this
+                }
+
+                self.handle_window_remove(hwnd);
+
+                if let Some(window) = self.windows.values().find(|w| w.handle() == hwnd) {
+                    window.bring_to_top();
+                }
             }
         }
     }
@@ -235,6 +242,8 @@ impl WindowsManager {
         _id_event_thread: u32,
         _dwms_event_time: u32,
     ) {
+        let hwnd = hwnd.0;
+
         if Self::event_window_is_valid(id_child, id_object, hwnd) {
             let mut instance = INSTANCE.lock().unwrap();
 
@@ -254,25 +263,23 @@ impl WindowsManager {
                 }
                 EVENT_SYSTEM_MOVESIZESTART => instance.start_move_window(hwnd),
                 EVENT_SYSTEM_MOVESIZEEND => instance.end_move_window(hwnd),
-                EVENT_OBJECT_LOCATIONCHANGE => {}
+                EVENT_OBJECT_LOCATIONCHANGE => instance.window_move(hwnd),
                 _ => error!("event_callback | event_type: UNKNOWN({:?})", event_type),
             }
         }
     }
 
-    fn event_window_is_valid(id_child: i32, id_object: i32, window_handle: HWND) -> bool {
-        id_child == 0 && id_object == 0 && window_handle.0 != 0
+    fn event_window_is_valid(id_child: i32, id_object: i32, hwnd: isize) -> bool {
+        id_child == 0 && id_object == 0 && hwnd != 0
     }
 
-    fn register_window(&mut self, hwnd: HWND) {
-        let hwnd = hwnd.0;
-
+    fn register_window(&mut self, hwnd: isize) {
         if self.windows.contains_key(&hwnd) {
-            debug!("register_window | handle: 0x{:X} already registered", hwnd);
+            debug!("register_window | handle: 0x{:X} already registered", &hwnd);
             return;
         }
 
-        debug!("register_window | handle: 0x{:X} not registered", hwnd);
+        debug!("register_window | handle: 0x{:X} not registered", &hwnd);
 
         match WindowsWindow::new(hwnd) {
             Ok(window) => self.windows.insert(hwnd, window),
@@ -283,66 +290,60 @@ impl WindowsManager {
         };
     }
 
-    fn unregister_window(&mut self, hwnd: HWND) {
-        let hwnd = hwnd.0;
-
+    fn unregister_window(&mut self, hwnd: isize) {
         if !self.windows.contains_key(&hwnd) {
-            debug!("unregister_window | handle: 0x{:X} not registered", hwnd);
+            debug!("unregister_window | handle: 0x{:X} not registered", &hwnd);
             return;
         }
 
-        debug!("unregister_window | handle: 0x{:X} registered", hwnd);
+        debug!("unregister_window | handle: 0x{:X} registered", &hwnd);
 
         self.windows.remove(&hwnd);
         // TODO: HandleWindowRemove(window);
     }
 
-    fn update_window(&mut self, hwnd: HWND, update_type: WindowUpdateType) {
-        let handle = hwnd.0;
-
-        if update_type == WindowUpdateType::Show && self.windows.contains_key(&handle) {
-            if let Some(_window) = self.windows.get(&handle) {};
+    fn update_window(&mut self, hwnd: isize, update_type: WindowUpdateType) {
+        if update_type == WindowUpdateType::Show && self.windows.contains_key(&hwnd) {
+            if let Some(_window) = self.windows.get(&hwnd) {};
             // TODO: WindowUpdated?.Invoke(window, update_type);
         } else if update_type == WindowUpdateType::Show {
             self.register_window(hwnd);
-        } else if update_type == WindowUpdateType::Hide && self.windows.contains_key(&handle) {
-            if let Some(window) = self.windows.get(&handle) {
+        } else if update_type == WindowUpdateType::Hide && self.windows.contains_key(&hwnd) {
+            if let Some(window) = self.windows.get(&hwnd) {
                 if !window.did_manual_hide() {
                     self.unregister_window(hwnd);
                 } else {
                     // TODO: WindowUpdated?.Invoke(window, update_type);
                 }
             };
-        } else if self.windows.contains_key(&handle) {
-            if let Some(_window) = self.windows.get(&handle) {};
+        } else if self.windows.contains_key(&hwnd) {
+            if let Some(_window) = self.windows.get(&hwnd) {};
             // TODO: WindowUpdated?.Invoke(window, update_type);
         }
     }
 
-    fn start_move_window(&mut self, hwnd: HWND) {
-        let handle = hwnd.0;
-
-        if self.windows.contains_key(&handle) {
-            self.handle_window_move_start(handle);
+    fn start_move_window(&mut self, hwnd: isize) {
+        if self.windows.contains_key(&hwnd) {
+            self.handle_window_move_start(hwnd);
             // TODO: WindowUpdated?.Invoke(window, WindowUpdateType.MoveStart);
-            debug!("start_move_window | handle: 0x{:X}", handle);
+            debug!("start_move_window | handle: 0x{:X}", &hwnd);
         }
     }
 
-    fn end_move_window(&mut self, hwnd: HWND) {
-        let handle = hwnd.0;
-
-        if self.windows.contains_key(&handle) {
+    fn end_move_window(&mut self, hwnd: isize) {
+        if self.windows.contains_key(&hwnd) {
             self.handle_window_move_end();
             // TODO: WindowUpdated?.Invoke(window, WindowUpdateType.MoveEnd);
-            debug!("end_move_window | handle: 0x{:X}", handle);
+            debug!("end_move_window | handle: 0x{:X}", &hwnd);
         }
     }
 
     fn window_move(&self, hwnd: isize) {
         if self.windows.contains_key(&hwnd) {
-            if let Some(_window) = self.windows.get(&hwnd) {
-                // TODO: WindowUpdated?.Invoke(_windows[handle], WindowUpdateType.Move);
+            if let Some(window) = self.windows.get(&hwnd) {
+                if window.can_layout() {
+                    // TODO: WindowUpdated?.Invoke(_windows[handle], WindowUpdateType.Move);
+                }
             }
         }
     }
@@ -369,6 +370,14 @@ impl WindowsManager {
             }
             self.mouse_move_window = None;
         }
+    }
+
+    fn handle_window_add(&mut self, handle: isize, first_create: bool) {
+        // TODO: WindowCreated?.Invoke(window, firstCreate);
+    }
+
+    fn handle_window_remove(&mut self, handle: isize) {
+        // TODO: WindowDestroyed?.Invoke(window);
     }
 }
 

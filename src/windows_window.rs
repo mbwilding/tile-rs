@@ -303,7 +303,7 @@ impl WindowsWindow {
 
     pub fn bring_to_top(&self) {
         unsafe {
-            BringWindowToTop(self.hwnd()).unwrap(); // TODO: Look into this
+            let _ = BringWindowToTop(self.hwnd());
         }
 
         // TODO: WindowUpdated?.Invoke(this);
