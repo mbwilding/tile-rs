@@ -8,14 +8,17 @@ use windows::Win32::UI::WindowsAndMessaging::{
 };
 
 pub fn is_cloaked(hwnd: HWND) -> bool {
-    let size = size_of::<bool>() as u32;
-    let mut state: bool = false;
-    let state_ptr = &mut state as *mut _ as *mut c_void; // TODO: Look into this
-    unsafe {
-        DwmGetWindowAttribute(hwnd, DWMWA_CLOAKED, state_ptr, size).unwrap();
-    } // TODO: Handle
+    let mut cloaked = 0u32;
+    let _ = unsafe {
+        DwmGetWindowAttribute(
+            hwnd,
+            DWMWA_CLOAKED,
+            &mut cloaked as *mut u32 as *mut c_void,
+            size_of::<u32>() as u32,
+        )
+    };
 
-    state
+    cloaked != 0
 }
 
 // TODO: Check implementation

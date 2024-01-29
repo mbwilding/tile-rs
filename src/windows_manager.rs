@@ -339,11 +339,9 @@ impl WindowsManager {
     }
 
     fn window_move(&self, hwnd: isize) {
-        if self.windows.contains_key(&hwnd) {
-            if let Some(window) = self.windows.get(&hwnd) {
-                if window.can_layout() {
-                    // TODO: WindowUpdated?.Invoke(_windows[handle], WindowUpdateType.Move);
-                }
+        if let Some(window) = self.windows.get(&hwnd) {
+            if window.can_layout() {
+                // TODO: WindowUpdated?.Invoke(_windows[handle], WindowUpdateType.Move);
             }
         }
     }
