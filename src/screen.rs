@@ -65,12 +65,9 @@ impl Screen {
                 szDevice: Default::default(),
             };
 
-            unsafe { GetMonitorInfoW(HMONITOR(monitor), &mut info.monitorInfo) };
-            unsafe {
-                let exw = *(ptr::addr_of!(info.monitorInfo) as *const MONITORINFOEXW);
-                device_name.push_str(&String::from_utf16_lossy(&exw.szDevice));
-            }
+            unsafe { GetMonitorInfoW(HMONITOR(monitor), ptr::addr_of!(info) as *mut MONITORINFO) };
 
+            device_name.push_str(&String::from_utf16_lossy(&info.szDevice));
             bounds = Rectangle::from(info.monitorInfo.rcMonitor);
             primary = (info.monitorInfo.dwFlags & MONITORINFOF_PRIMARY) != 0;
 
@@ -136,16 +133,18 @@ impl Screen {
         userdata: LPARAM,
     ) -> BOOL {
         let monitors = &mut *(userdata.0 as *mut Vec<MonitorData>);
-        let mut monitor_info = MONITORINFO {
-            cbSize: size_of::<MONITORINFO>() as u32,
-            ..Default::default()
+        let info = MONITORINFOEXW {
+            monitorInfo: MONITORINFO {
+                cbSize: size_of::<MONITORINFOEXW>() as u32,
+                ..Default::default()
+            },
+            szDevice: Default::default(),
         };
 
-        if GetMonitorInfoW(hmonitor, &mut monitor_info).as_bool() {
-            let exw = *(ptr::addr_of!(monitor_info) as *const MONITORINFOEXW);
+        if GetMonitorInfoW(hmonitor, ptr::addr_of!(info) as *mut MONITORINFO).as_bool() {
             monitors.push(MonitorData {
                 hmonitor,
-                monitor_info: exw,
+                monitor_info: info,
             });
 
             return TRUE;
