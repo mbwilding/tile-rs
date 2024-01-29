@@ -1,4 +1,4 @@
-use crate::structs::Rectangle;
+use crate::csharp::structs::Rectangle;
 use crate::win32_helpers;
 use crate::window_location::WindowLocation;
 use crate::window_state::WindowState;

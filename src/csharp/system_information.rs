@@ -1,4 +1,4 @@
-use crate::structs::Rectangle;
+use crate::csharp::structs::Rectangle;
 use std::ffi::c_void;
 use windows::Win32::Foundation::RECT;
 use windows::Win32::UI::WindowsAndMessaging::{

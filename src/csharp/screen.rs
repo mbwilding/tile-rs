@@ -1,6 +1,6 @@
-use crate::structs::{Point, Rectangle};
-use crate::system_information;
-use crate::system_information::multi_monitor_support;
+use crate::csharp::structs::{Point, Rectangle};
+use crate::csharp::system_information;
+use crate::csharp::system_information::multi_monitor_support;
 use std::ffi::OsStr;
 use std::mem::size_of;
 use std::os::windows::ffi::OsStrExt;
