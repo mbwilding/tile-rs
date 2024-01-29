@@ -363,18 +363,18 @@ impl WindowsManager {
     fn handle_window_move_end(&mut self) {
         let _lock = self.mouse_move_lock.lock().unwrap();
         if let Some(ref mut handle) = self.mouse_move_window {
-            if let Some(window) = self.windows.get_mut(&handle) {
+            if let Some(window) = self.windows.get_mut(handle) {
                 window.is_mouse_moving = false;
             }
             self.mouse_move_window = None;
         }
     }
 
-    fn handle_window_add(&mut self, handle: isize, first_create: bool) {
+    fn handle_window_add(&mut self, _handle: isize, _first_create: bool) {
         // TODO: WindowCreated?.Invoke(window, firstCreate);
     }
 
-    fn handle_window_remove(&mut self, handle: isize) {
+    fn handle_window_remove(&mut self, _handle: isize) {
         // TODO: WindowDestroyed?.Invoke(window);
     }
 }

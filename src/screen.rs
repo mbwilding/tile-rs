@@ -138,7 +138,7 @@ impl Screen {
     }
 
     pub fn working_area(&self) -> Rectangle {
-        return if !multi_monitor_support() || self.hmonitor == PRIMARY_MONITOR {
+        if !multi_monitor_support() || self.hmonitor == PRIMARY_MONITOR {
             system_information::working_area()
         } else {
             let mut monitor_info = MONITORINFO::default();
@@ -149,7 +149,7 @@ impl Screen {
             };
 
             Rectangle::from(monitor_info.rcWork)
-        };
+        }
     }
 
     pub fn primary_screen() -> Screen {
