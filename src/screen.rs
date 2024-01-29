@@ -1,41 +1,47 @@
-use crate::structs::Rectangle;
+use crate::structs::{Point, Rectangle};
 use crate::system_information;
 use crate::system_information::multi_monitor_support;
 use std::ffi::OsStr;
 use std::mem::size_of;
 use std::os::windows::ffi::OsStrExt;
 use windows::core::PCWSTR;
-use windows::Win32::Foundation::{BOOL, LPARAM, RECT, TRUE};
+use windows::Win32::Foundation::{BOOL, LPARAM, POINT, RECT, TRUE};
 use windows::Win32::Graphics::Gdi::{
-    CreateDCW, DeleteDC, EnumDisplayMonitors, GetDeviceCaps, GetMonitorInfoW, BITSPIXEL, HDC,
-    HMONITOR, MONITORINFO, MONITORINFOEXW, PLANES,
+    CreateDCW, DeleteDC, EnumDisplayMonitors, GetDeviceCaps, GetMonitorInfoW, MonitorFromPoint,
+    MonitorFromRect, BITSPIXEL, HDC, HMONITOR, MONITORINFO, MONITORINFOEXW,
+    MONITOR_DEFAULTTONEAREST, PLANES,
 };
 use windows::Win32::UI::WindowsAndMessaging::MONITORINFOF_PRIMARY;
 
 const PRIMARY_MONITOR: isize = 0xBAADF00D;
 
-static mut SCREENS: Option<Vec<Screen>> = None;
+struct MonitorData {
+    pub hmonitor: HMONITOR,
+    pub monitor_info: MONITORINFO,
+}
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct Screen {
-    bounds: Rectangle,
-    primary: bool,
-    device_name: String,
-    hmonitor: HMONITOR,
-    bit_depth: i32,
+    pub bounds: Rectangle,
+    pub primary: bool,
+    pub device_name: String,
+    pub hmonitor: isize,
+    pub bit_depth: i32,
 }
 
 impl Screen {
-    // TODO RECT / Rectangle and setting variables to struct
-    pub fn constructor(&mut self, monitor: isize, hdc: Option<HDC>) {
+    pub fn new(monitor: isize, hdc: Option<HDC>) -> Screen {
         let mut screen_dc = hdc;
 
+        let mut bounds = Rectangle::default();
         let mut primary = false;
         let mut device_name = String::new();
+        let hmonitor = HMONITOR(monitor);
+        let mut bit_depth = 0;
 
         if multi_monitor_support() || monitor == PRIMARY_MONITOR {
             // Single monitor system
-            self.bounds = system_information::virtual_screen();
+            bounds = system_information::virtual_screen();
             primary = true;
             device_name.push_str("DISPLAY");
         } else {
@@ -51,7 +57,7 @@ impl Screen {
             // TODO: Call doesn't fill szDevice as in only takes mutable MonitorInfo
             unsafe { GetMonitorInfoW(HMONITOR(monitor), &mut info.monitorInfo) };
 
-            self.bounds = Rectangle::from(info.monitorInfo.rcMonitor);
+            bounds = Rectangle::from(info.monitorInfo.rcMonitor);
             primary = (info.monitorInfo.dwFlags & MONITORINFOF_PRIMARY) != 0;
 
             device_name.push_str(&String::from_utf16_lossy(&info.szDevice));
@@ -68,12 +74,9 @@ impl Screen {
             }
         }
 
-        self.hmonitor = HMONITOR(monitor);
-
         if let Some(hdc) = hdc {
-            let mut bit_depth = unsafe { GetDeviceCaps(hdc, BITSPIXEL) };
+            bit_depth = unsafe { GetDeviceCaps(hdc, BITSPIXEL) };
             bit_depth *= unsafe { GetDeviceCaps(hdc, PLANES) };
-            self.bit_depth = bit_depth;
         }
 
         if hdc != screen_dc {
@@ -81,50 +84,115 @@ impl Screen {
                 unsafe { DeleteDC(screen_dc) };
             }
         }
+
+        Screen {
+            bounds,
+            primary,
+            device_name,
+            hmonitor: hmonitor.0,
+            bit_depth,
+        }
     }
 
     pub fn all_screens() -> Vec<Screen> {
         unsafe {
-            if SCREENS.is_none() {
-                if multi_monitor_support() {
-                    let mut monitor_infos: Vec<MONITORINFO> = Vec::new();
-                    let userdata = &mut monitor_infos as *mut _ as isize;
+            if multi_monitor_support() {
+                let mut monitor_datas: Vec<MonitorData> = Vec::new();
+                let userdata = &mut monitor_datas as *mut _ as isize;
 
-                    EnumDisplayMonitors(
-                        None,
-                        None,
-                        Some(Screen::enumerate_monitors_callback),
-                        LPARAM(userdata),
-                    );
+                EnumDisplayMonitors(
+                    None,
+                    None,
+                    Some(Self::enumerate_monitors_callback),
+                    LPARAM(userdata),
+                );
 
-                    if !monitor_infos.is_empty() {
-                        // self.screens = Some(screens);
-                    } else {
-                        // SCREENS = Some(vec![Screen {}]); // TODO: new Screen((IntPtr)PRIMARY_MONITOR)
-                    }
-
-                    println!("{:?}", monitor_infos);
-                }
+                return monitor_datas
+                    .iter()
+                    .map(|monitor_data| Screen::new(monitor_data.hmonitor.0, None))
+                    .collect();
             }
 
-            vec![] // TODO
+            vec![Screen::new(PRIMARY_MONITOR, None)]
         }
     }
 
     unsafe extern "system" fn enumerate_monitors_callback(
-        monitor: HMONITOR,
+        hmonitor: HMONITOR,
         _: HDC,
         _: *mut RECT,
         userdata: LPARAM,
     ) -> BOOL {
-        let monitors = &mut *(userdata.0 as *mut Vec<MONITORINFO>);
+        let monitors = &mut *(userdata.0 as *mut Vec<MonitorData>);
         let mut monitor_info = MONITORINFO::default();
         monitor_info.cbSize = size_of::<MONITORINFO>() as u32;
 
-        if GetMonitorInfoW(monitor, &mut monitor_info).as_bool() {
-            monitors.push(monitor_info);
+        if GetMonitorInfoW(hmonitor, &mut monitor_info).as_bool() {
+            monitors.push(MonitorData {
+                hmonitor,
+                monitor_info,
+            });
         }
 
         TRUE
+    }
+
+    pub fn working_area(&self) -> Rectangle {
+        return if !multi_monitor_support() || self.hmonitor == PRIMARY_MONITOR {
+            system_information::working_area()
+        } else {
+            let mut monitor_info = MONITORINFO::default();
+            monitor_info.cbSize = size_of::<MONITORINFO>() as u32;
+
+            unsafe {
+                let _ = GetMonitorInfoW(HMONITOR(self.hmonitor), &mut monitor_info);
+            };
+
+            Rectangle::from(monitor_info.rcWork)
+        };
+    }
+
+    pub fn primary_screen() -> Screen {
+        if multi_monitor_support() {
+            // TODO: unwrap
+            Screen::all_screens()
+                .into_iter()
+                .find(|s| s.primary)
+                .unwrap()
+        } else {
+            Screen::new(PRIMARY_MONITOR, None)
+        }
+    }
+
+    pub fn from_point(point: Point) -> Screen {
+        if multi_monitor_support() {
+            let hmonitor = unsafe {
+                MonitorFromPoint(
+                    POINT {
+                        x: point.x,
+                        y: point.y,
+                    },
+                    MONITOR_DEFAULTTONEAREST,
+                )
+            };
+            Screen::new(hmonitor.0, None)
+        } else {
+            Screen::new(PRIMARY_MONITOR, None)
+        }
+    }
+
+    pub fn from_rectangle(rect: Rectangle) -> Screen {
+        if multi_monitor_support() {
+            let rect = RECT {
+                left: rect.x,
+                top: rect.y,
+                right: rect.right(),
+                bottom: rect.bottom(),
+            };
+            let hmonitor = unsafe { MonitorFromRect(&rect as *const _, MONITOR_DEFAULTTONEAREST) };
+            Screen::new(hmonitor.0, None)
+        } else {
+            Screen::new(PRIMARY_MONITOR, None)
+        }
     }
 }
