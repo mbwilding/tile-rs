@@ -124,8 +124,10 @@ impl Screen {
         userdata: LPARAM,
     ) -> BOOL {
         let monitors = &mut *(userdata.0 as *mut Vec<MonitorData>);
-        let mut monitor_info = MONITORINFO::default();
-        monitor_info.cbSize = size_of::<MONITORINFO>() as u32;
+        let mut monitor_info = MONITORINFO {
+            cbSize: size_of::<MONITORINFO>() as u32,
+            ..Default::default()
+        };
 
         if GetMonitorInfoW(hmonitor, &mut monitor_info).as_bool() {
             monitors.push(MonitorData {
@@ -141,8 +143,10 @@ impl Screen {
         if !multi_monitor_support() || self.hmonitor == PRIMARY_MONITOR {
             system_information::working_area()
         } else {
-            let mut monitor_info = MONITORINFO::default();
-            monitor_info.cbSize = size_of::<MONITORINFO>() as u32;
+            let mut monitor_info = MONITORINFO {
+                cbSize: size_of::<MONITORINFO>() as u32,
+                ..Default::default()
+            };
 
             unsafe {
                 let _ = GetMonitorInfoW(HMONITOR(self.hmonitor), &mut monitor_info);
