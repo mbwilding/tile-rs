@@ -55,7 +55,7 @@ impl Screen {
 
             unsafe { GetMonitorInfoW(HMONITOR(monitor), ptr::addr_of!(info) as *mut MONITORINFO) };
 
-            device_name.push_str(&String::from_utf16_lossy(&info.szDevice));
+            device_name.push_str(String::from_utf16_lossy(&info.szDevice).trim_end_matches('\0'));
             bounds = Rectangle::from(info.monitorInfo.rcMonitor);
             primary = (info.monitorInfo.dwFlags & MONITORINFOF_PRIMARY) != 0;
 
@@ -71,9 +71,9 @@ impl Screen {
             }
         }
 
-        if let Some(hdc) = hdc {
-            bit_depth = unsafe { GetDeviceCaps(hdc, BITSPIXEL) };
-            bit_depth *= unsafe { GetDeviceCaps(hdc, PLANES) };
+        if let Some(screen_dc) = screen_dc {
+            bit_depth = unsafe { GetDeviceCaps(screen_dc, BITSPIXEL) };
+            bit_depth *= unsafe { GetDeviceCaps(screen_dc, PLANES) };
         }
 
         if hdc != screen_dc {

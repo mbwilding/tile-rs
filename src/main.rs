@@ -16,6 +16,7 @@ mod windows_manager;
 mod windows_window;
 mod workspace;
 
+use crate::csharp::screen::Screen;
 use crate::layout_engines::LayoutEngine;
 use eframe::egui;
 use log::{debug, info};
@@ -26,6 +27,8 @@ fn main() -> eframe::Result<()> {
     env_logger::init();
     info!("Starting Tile-RS");
     single::check();
+
+    println!("{:#?}", Screen::all_screens());
 
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
