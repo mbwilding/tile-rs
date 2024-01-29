@@ -21,7 +21,6 @@ pub fn is_cloaked(hwnd: HWND) -> bool {
     cloaked != 0
 }
 
-// TODO: Check implementation
 pub fn is_app_window(hwnd: HWND) -> bool {
     unsafe {
         IsWindowVisible(hwnd).as_bool()

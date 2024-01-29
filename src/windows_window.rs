@@ -22,6 +22,19 @@ use windows::Win32::UI::WindowsAndMessaging::{
     SW_SHOWNOACTIVATE, WM_SYSCOMMAND,
 };
 
+const IGNORE_WINDOW_CLASSES: [&str; 8] = [
+    "TaskManagerWindow",
+    "MSCTFIME UI",
+    "SHELLDLL_DefView",
+    "LockScreenBackstopFrame",
+    "Progman",
+    "Shell_TrayWnd",
+    "WorkerW",
+    "Shell_SecondaryTrayWnd",
+];
+
+const IGNORE_WINDOW_TITLES: [&str; 1] = ["Windows Input Experience"];
+
 #[derive(Debug, Eq, Hash, PartialEq)]
 pub struct WindowsWindow {
     // Private
@@ -37,9 +50,28 @@ pub struct WindowsWindow {
 
 impl WindowsWindow {
     pub fn new(handle: isize) -> Result<Self> {
+        let hwnd = HWND(handle);
+
+        // Filtering
+        {
+            let class = Self::class_from_hwnd(hwnd);
+            if IGNORE_WINDOW_CLASSES.contains(&class.as_str()) {
+                bail!("Filtered class: {}", &class);
+            }
+
+            let title = Self::title_from_hwnd(hwnd);
+            if IGNORE_WINDOW_TITLES.contains(&title.as_str()) {
+                bail!("Filtered title: {}", &title);
+            }
+
+            if Self::title_from_hwnd(hwnd).is_empty() {
+                bail!("Filtered empty title");
+            }
+        }
+
         let mut process_id = 0;
 
-        unsafe { GetWindowThreadProcessId(HWND(handle), Some(&mut process_id)) };
+        unsafe { GetWindowThreadProcessId(hwnd, Some(&mut process_id)) };
 
         if process_id == 0 {
             error!("Failed to get process id");
@@ -69,6 +101,7 @@ impl WindowsWindow {
 
         trace!("process_name: {:?}", process_name);
 
+        // Get file name
         let process_file_name = if let Some(file_name) = Path::new(&process_name).file_name() {
             file_name.to_string_lossy().to_string()
         } else {
@@ -92,10 +125,13 @@ impl WindowsWindow {
     }
 
     pub fn title(&self) -> String {
-        let handle = HWND(self.handle);
-        let length = unsafe { GetWindowTextLengthW(handle) };
+        Self::title_from_hwnd(self.hwnd())
+    }
+
+    pub fn title_from_hwnd(hwnd: HWND) -> String {
+        let length = unsafe { GetWindowTextLengthW(hwnd) };
         let mut bytes: Vec<u16> = vec![0; length as usize + 1];
-        let _ = unsafe { GetWindowTextW(handle, bytes.as_mut_slice()) };
+        let _ = unsafe { GetWindowTextW(hwnd, bytes.as_mut_slice()) };
 
         String::from_utf16_lossy(&bytes[..length as usize])
     }
@@ -109,9 +145,13 @@ impl WindowsWindow {
     }
 
     pub fn class(&self) -> String {
+        Self::class_from_hwnd(self.hwnd())
+    }
+
+    pub fn class_from_hwnd(hwnd: HWND) -> String {
         let mut class: Vec<u16> = vec![0; MAX_PATH as usize];
         unsafe {
-            GetClassNameW(self.hwnd(), class.as_mut_slice());
+            GetClassNameW(hwnd, class.as_mut_slice());
         }
 
         let null_pos = class.iter().position(|&c| c == 0).unwrap_or(class.len());
@@ -313,8 +353,7 @@ impl WindowsWindow {
         debug!("[{}] :: Close", self.title());
 
         unsafe {
-            SendNotifyMessageW(self.hwnd(), WM_SYSCOMMAND, WPARAM(SC_CLOSE as usize), None)
-                .unwrap(); // TODO: Look into this
+            let _ = SendNotifyMessageW(self.hwnd(), WM_SYSCOMMAND, WPARAM(SC_CLOSE as usize), None);
         }
     }
 

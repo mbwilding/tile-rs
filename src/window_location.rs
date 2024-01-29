@@ -30,8 +30,8 @@ impl Display for WindowLocation {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "{:?} - {}:{}/{}:{}",
-            self.state, self.x, self.y, self.width, self.height
+            "{}x{} | {}x{} [{:?}]",
+            self.x, self.y, self.width, self.height, self.state,
         )
     }
 }

@@ -1,3 +1,4 @@
+use crate::native_monitor_container::NativeMonitorContainer;
 use crate::windows_manager;
 use eframe::egui;
 use eframe::emath::Align;
@@ -7,6 +8,9 @@ use serde::{Deserialize, Serialize};
 #[serde(default)]
 pub struct App {
     settings: Settings,
+
+    #[serde(skip)]
+    monitor_container: NativeMonitorContainer,
 
     #[serde(skip)]
     window_state: WindowState,
@@ -114,7 +118,17 @@ impl eframe::App for App {
                                 window.show_maximized();
                             }
 
-                            ui.label(title);
+                            if ui.button("Close").clicked() {
+                                window.close();
+                            }
+
+                            ui.label(format!(
+                                "{} ({})    Class: {} | Path:{}",
+                                title,
+                                window.location(),
+                                window.class(),
+                                window.process_name(),
+                            ));
                         });
                     });
                 });

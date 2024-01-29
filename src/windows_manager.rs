@@ -4,7 +4,7 @@ use crate::windows_window::WindowsWindow;
 use anyhow::Result;
 use lazy_static::lazy_static;
 use log::{debug, error, info, trace};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, Mutex};
 use windows::core::PCWSTR;
 use windows::Win32::Foundation::{BOOL, HMODULE, HWND, LPARAM, LRESULT, TRUE, WPARAM};
@@ -26,7 +26,7 @@ lazy_static! {
 
 #[derive(Debug, Default)]
 pub struct WindowsManager {
-    pub windows: HashMap<isize, WindowsWindow>,
+    pub windows: BTreeMap<isize, WindowsWindow>,
     pub floating: HashMap<isize, bool>,
     mouse_move_lock: Mutex<()>,
     mouse_move_window: Option<isize>,
@@ -109,12 +109,11 @@ impl WindowsManager {
 
         let mut windows: Vec<HWND> = vec![];
 
-        let _ = unsafe {
-            EnumWindows(
+        unsafe {
+            let _ = EnumWindows(
                 Some(Self::enum_windows_callback),
                 LPARAM(&mut windows as *mut Vec<HWND> as isize),
-            )
-            .ok()
+            );
         };
 
         for hwnd in windows.into_iter() {

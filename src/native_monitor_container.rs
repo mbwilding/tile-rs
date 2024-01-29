@@ -3,7 +3,7 @@ use crate::screen::Screen;
 use crate::structs::{Point, Rectangle};
 use log::debug;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct NativeMonitorContainer {
     pub monitors: Vec<Monitor>,
     pub focused_monitor: usize,
