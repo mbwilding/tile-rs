@@ -4,8 +4,9 @@ use crate::system_information::multi_monitor_support;
 use std::ffi::OsStr;
 use std::mem::size_of;
 use std::os::windows::ffi::OsStrExt;
+use std::ptr;
 use windows::core::PCWSTR;
-use windows::Win32::Foundation::{BOOL, LPARAM, POINT, RECT, TRUE};
+use windows::Win32::Foundation::{BOOL, FALSE, LPARAM, POINT, RECT, TRUE};
 use windows::Win32::Graphics::Gdi::{
     CreateDCW, DeleteDC, EnumDisplayMonitors, GetDeviceCaps, GetMonitorInfoW, MonitorFromPoint,
     MonitorFromRect, BITSPIXEL, HDC, HMONITOR, MONITORINFO, MONITORINFOEXW,
@@ -17,7 +18,7 @@ const PRIMARY_MONITOR: isize = 0xBAADF00D;
 
 struct MonitorData {
     pub hmonitor: HMONITOR,
-    pub monitor_info: MONITORINFO,
+    pub monitor_info: MONITORINFOEXW,
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
@@ -46,15 +47,6 @@ impl Screen {
             device_name.push_str("DISPLAY");
         } else {
             // Multi monitor system
-            let mut info = MONITORINFOEXW {
-                monitorInfo: MONITORINFO {
-                    cbSize: size_of::<MONITORINFOEXW>() as u32,
-                    ..Default::default()
-                },
-                ..Default::default()
-            };
-
-            device_name.push_str(&String::from_utf16_lossy(&info.szDevice));
 
             // TODO: [Wait for update in Windows crate for ExW]
             //device_name.push_str(
@@ -65,8 +57,19 @@ impl Screen {
             //        .device_name,
             //);
 
-            // TODO: Call doesn't fill szDevice as in only takes mutable MonitorInfo
+            let mut info = MONITORINFOEXW {
+                monitorInfo: MONITORINFO {
+                    cbSize: size_of::<MONITORINFOEXW>() as u32,
+                    ..Default::default()
+                },
+                szDevice: Default::default(),
+            };
+
             unsafe { GetMonitorInfoW(HMONITOR(monitor), &mut info.monitorInfo) };
+            unsafe {
+                let exw = *(ptr::addr_of!(info.monitorInfo) as *const MONITORINFOEXW);
+                device_name.push_str(&String::from_utf16_lossy(&exw.szDevice));
+            }
 
             bounds = Rectangle::from(info.monitorInfo.rcMonitor);
             primary = (info.monitorInfo.dwFlags & MONITORINFOF_PRIMARY) != 0;
@@ -139,13 +142,16 @@ impl Screen {
         };
 
         if GetMonitorInfoW(hmonitor, &mut monitor_info).as_bool() {
+            let exw = *(ptr::addr_of!(monitor_info) as *const MONITORINFOEXW);
             monitors.push(MonitorData {
                 hmonitor,
-                monitor_info,
+                monitor_info: exw,
             });
+
+            return TRUE;
         }
 
-        TRUE
+        FALSE
     }
 
     pub fn working_area(&self) -> Rectangle {
