@@ -2,13 +2,13 @@ use crate::screen::Screen;
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct Monitor {
-    pub index: u32,
+    pub index: usize,
     pub screen: Screen,
 }
 
 // TODO: Reduce calls for `working_area`
 impl Monitor {
-    pub fn new(index: u32, screen: Screen) -> Self {
+    pub fn new(index: usize, screen: Screen) -> Self {
         Self { index, screen }
     }
 

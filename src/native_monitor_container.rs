@@ -1,25 +1,28 @@
 use crate::monitor::Monitor;
 use crate::screen::Screen;
 use crate::structs::{Point, Rectangle};
+use log::debug;
 
 #[derive(Debug)]
 pub struct NativeMonitorContainer {
-    monitors: Vec<Monitor>,
-    pub focused_monitor: i32,
+    pub monitors: Vec<Monitor>,
+    pub focused_monitor: usize,
 }
 
 impl NativeMonitorContainer {
     pub fn new() -> Self {
-        let screens = Screen::all_screens();
-        let mut monitors: Vec<Monitor> = Vec::with_capacity(screens.len());
+        let mut screens = Screen::all_screens();
+        screens.sort_by_key(|s| !s.primary);
 
-        let primary_monitor = Monitor::new(0, Screen::primary_screen());
-        *monitors.get_mut(0).unwrap() = primary_monitor;
+        debug!("screens: {:?}", screens);
 
-        for (index, screen) in screens.iter().enumerate().skip(1) {
-            let monitor = Monitor::new(index as u32, screen.clone());
-            monitors.push(monitor.clone());
-        }
+        let monitors = screens
+            .iter()
+            .enumerate()
+            .map(|(i, s)| Monitor::new(i, s.clone()))
+            .collect::<Vec<_>>();
+
+        debug!("monitors: {:?}", monitors);
 
         Self {
             monitors,
@@ -39,8 +42,8 @@ impl NativeMonitorContainer {
         &self.monitors
     }
 
-    pub fn get_monitor_at_index(&self, index: i32) -> Option<&Monitor> {
-        self.monitors.get(index as usize)
+    pub fn get_monitor_at_index(&self, index: usize) -> Option<&Monitor> {
+        self.monitors.get(index)
     }
 
     pub fn get_monitor_at_point(&self, x: i32, y: i32) -> &Monitor {

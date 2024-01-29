@@ -24,7 +24,6 @@ pub const APP_NAME: &str = "Tile-RS";
 fn main() -> eframe::Result<()> {
     env_logger::init();
     info!("Starting Tile-RS");
-
     single::check();
 
     let native_options = eframe::NativeOptions {

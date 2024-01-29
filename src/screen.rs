@@ -39,7 +39,7 @@ impl Screen {
         let hmonitor = HMONITOR(monitor);
         let mut bit_depth = 0;
 
-        if multi_monitor_support() || monitor == PRIMARY_MONITOR {
+        if !multi_monitor_support() || monitor == PRIMARY_MONITOR {
             // Single monitor system
             bounds = system_information::virtual_screen();
             primary = true;
@@ -54,13 +54,22 @@ impl Screen {
                 ..Default::default()
             };
 
+            device_name.push_str(&String::from_utf16_lossy(&info.szDevice));
+
+            // TODO: [Wait for update in Windows crate for ExW]
+            //device_name.push_str(
+            //    &Self::all_screens()
+            //        .iter()
+            //        .find(|s| s.hmonitor == monitor)
+            //        .unwrap()
+            //        .device_name,
+            //);
+
             // TODO: Call doesn't fill szDevice as in only takes mutable MonitorInfo
             unsafe { GetMonitorInfoW(HMONITOR(monitor), &mut info.monitorInfo) };
 
             bounds = Rectangle::from(info.monitorInfo.rcMonitor);
             primary = (info.monitorInfo.dwFlags & MONITORINFOF_PRIMARY) != 0;
-
-            device_name.push_str(&String::from_utf16_lossy(&info.szDevice));
 
             let pwsz_driver = OsStr::new(&device_name)
                 .encode_wide()
