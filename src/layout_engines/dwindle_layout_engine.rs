@@ -41,7 +41,7 @@ impl LayoutEngine for DwindleLayoutEngine {
 
     fn calc_layout(
         &mut self,
-        windows: &[WindowsWindow],
+        windows: &[&WindowsWindow],
         space_width: i32,
         space_height: i32,
     ) -> Vec<WindowLocation> {

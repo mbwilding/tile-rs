@@ -22,7 +22,7 @@ impl LayoutEngine for GridLayoutEngine {
 
     fn calc_layout(
         &mut self,
-        windows: &[WindowsWindow],
+        windows: &[&WindowsWindow],
         space_width: i32,
         space_height: i32,
     ) -> Vec<WindowLocation> {
@@ -39,7 +39,7 @@ impl LayoutEngine for GridLayoutEngine {
         let width = space_width / grid_width;
         let height = space_height / grid_height;
 
-        for (i, window) in windows.iter().enumerate() {
+        for i in 0..windows.len() {
             let i = i as i32;
 
             let x = i / grid_width * width;

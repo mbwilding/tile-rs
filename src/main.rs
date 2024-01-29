@@ -14,9 +14,11 @@ mod window_state;
 mod windows_defer_pos_handle;
 mod windows_manager;
 mod windows_window;
+mod workspace;
 
+use crate::layout_engines::LayoutEngine;
 use eframe::egui;
-use log::info;
+use log::{debug, info};
 
 pub const APP_NAME: &str = "Tile-RS";
 
@@ -41,7 +43,16 @@ fn main() -> eframe::Result<()> {
         native_options,
         Box::new(move |cc| {
             let app = app::App::new(cc);
-            windows_manager::INSTANCE.lock().unwrap().init();
+
+            let mut windows_manager = windows_manager::INSTANCE.lock().unwrap();
+            windows_manager.init();
+
+            // TODO: TESTING CODE
+            let mut engine = layout_engines::grid_layout_engine::GridLayoutEngine::new();
+            let windows = windows_manager.windows.values().collect::<Vec<_>>();
+            let layout = engine.calc_layout(windows.as_slice(), 3840, 2160);
+            debug!("layout: {:#?}", layout);
+
             Box::new(app)
         }),
     )

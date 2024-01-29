@@ -1,12 +1,12 @@
 use crate::window_location::WindowLocation;
 use crate::windows_window::WindowsWindow;
 
-mod dwindle_layout_engine;
-mod focus_layout_engine;
-mod full_layout_engine;
-mod grid_layout_engine;
-mod panel_layout_engine;
-mod tall_layout_engine;
+pub mod dwindle_layout_engine;
+pub mod focus_layout_engine;
+pub mod full_layout_engine;
+pub mod grid_layout_engine;
+pub mod panel_layout_engine;
+pub mod tall_layout_engine;
 
 pub trait LayoutEngine {
     // the name of the layout engine
@@ -15,7 +15,7 @@ pub trait LayoutEngine {
     // calculate the desired layout of the workspace
     fn calc_layout(
         &mut self,
-        windows: &[WindowsWindow],
+        windows: &[&WindowsWindow],
         space_width: i32,
         space_height: i32,
     ) -> Vec<WindowLocation>;

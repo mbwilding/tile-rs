@@ -22,7 +22,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
     SW_SHOWNOACTIVATE, WM_SYSCOMMAND,
 };
 
-const IGNORE_WINDOW_CLASSES: [&str; 8] = [
+const IGNORE_WINDOW_CLASSES: [&str; 9] = [
     "TaskManagerWindow",
     "MSCTFIME UI",
     "SHELLDLL_DefView",
@@ -31,6 +31,7 @@ const IGNORE_WINDOW_CLASSES: [&str; 8] = [
     "Shell_TrayWnd",
     "WorkerW",
     "Shell_SecondaryTrayWnd",
+    "Windows.UI.Composition.DesktopWindowContentBridge",
 ];
 
 const IGNORE_WINDOW_TITLES: [&str; 1] = ["Windows Input Experience"];
