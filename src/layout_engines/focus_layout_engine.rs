@@ -79,26 +79,24 @@ impl FocusLayoutEngine {
                     primary_height,
                     WindowState::Normal,
                 ));
+            } else if i < nb_left_windows + num_in_primary {
+                // left side
+                list.push(WindowLocation::new(
+                    0,
+                    (i - num_in_primary) * left_height,
+                    secondary_width,
+                    left_height,
+                    WindowState::Normal,
+                ));
             } else {
-                if i < nb_left_windows + num_in_primary {
-                    // left side
-                    list.push(WindowLocation::new(
-                        0,
-                        (i - num_in_primary) * left_height,
-                        secondary_width,
-                        left_height,
-                        WindowState::Normal,
-                    ));
-                } else {
-                    // right side
-                    list.push(WindowLocation::new(
-                        secondary_width + primary_width,
-                        (i - num_in_primary - nb_left_windows) * right_height,
-                        secondary_width,
-                        right_height,
-                        WindowState::Normal,
-                    ));
-                }
+                // right side
+                list.push(WindowLocation::new(
+                    secondary_width + primary_width,
+                    (i - num_in_primary - nb_left_windows) * right_height,
+                    secondary_width,
+                    right_height,
+                    WindowState::Normal,
+                ));
             }
         }
         list

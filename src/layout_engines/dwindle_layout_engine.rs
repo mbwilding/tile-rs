@@ -60,9 +60,9 @@ impl DwindleLayoutEngine {
         let primary_width =
             (space_width as f64 * (self.primary_percent + self.primary_percent_offset)) as i32;
         let primary_height = space_height / num_in_primary;
-        let height = space_height / std::cmp::max(num_windows - num_in_primary, 1);
+        let _height = space_height / std::cmp::max(num_windows - num_in_primary, 1);
 
-        let mut primary_width = if num_in_primary >= num_windows {
+        let primary_width = if num_in_primary >= num_windows {
             space_width
         } else {
             primary_width
