@@ -3,7 +3,7 @@ use crate::win32_helpers;
 use crate::window_location::WindowLocation;
 use crate::window_state::WindowState;
 use anyhow::{bail, Result};
-use log::{debug, error, trace};
+use log::{debug, error, trace, warn};
 use std::ffi::c_void;
 use std::fmt::Display;
 use std::mem::size_of;
@@ -57,16 +57,22 @@ impl WindowsWindow {
         {
             let class = Self::class_from_hwnd(hwnd);
             if IGNORE_WINDOW_CLASSES.contains(&class.as_str()) {
-                bail!("Filtered class: {}", &class);
+                let msg = format!("Filtered class: {}", &class);
+                trace!("{}", &msg);
+                bail!("{}", &msg);
             }
 
             let title = Self::title_from_hwnd(hwnd);
             if IGNORE_WINDOW_TITLES.contains(&title.as_str()) {
-                bail!("Filtered title: {}", &title);
+                let msg = format!("Filtered title: {}", &title);
+                trace!("{}", &msg);
+                bail!("{}", &msg);
             }
 
             if Self::title_from_hwnd(hwnd).is_empty() {
-                bail!("Filtered empty title");
+                let msg = "Filtered empty title";
+                trace!("{}", &msg);
+                bail!("{}", &msg);
             }
         }
 
@@ -88,8 +94,14 @@ impl WindowsWindow {
         } {
             Ok(handle) => handle,
             Err(e) => {
-                error!("Failed to open process: {:?}", e);
-                bail!("Failed to open process: {:?}", e);
+                let msg = format!(
+                    "Failed to open process [hwnd: 0x{:X} | pid: {}]: {:?}",
+                    handle,
+                    process_id,
+                    e.message(),
+                );
+                warn!("{}", msg);
+                bail!("{}", msg);
             }
         };
 

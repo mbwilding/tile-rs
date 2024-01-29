@@ -274,28 +274,25 @@ impl WindowsManager {
 
     fn register_window(&mut self, hwnd: isize) {
         if self.windows.contains_key(&hwnd) {
-            debug!("register_window | handle: 0x{:X} already registered", &hwnd);
+            trace!("register_window | handle: 0x{:X} already registered", &hwnd);
             return;
         }
 
-        debug!("register_window | handle: 0x{:X} not registered", &hwnd);
+        trace!("register_window | handle: 0x{:X} not registered", &hwnd);
 
         match WindowsWindow::new(hwnd) {
             Ok(window) => self.windows.insert(hwnd, window),
-            Err(e) => {
-                error!("register_window | Failed to register window: {:?}", e);
-                None
-            }
+            Err(_) => None,
         };
     }
 
     fn unregister_window(&mut self, hwnd: isize) {
         if !self.windows.contains_key(&hwnd) {
-            debug!("unregister_window | handle: 0x{:X} not registered", &hwnd);
+            trace!("unregister_window | handle: 0x{:X} not registered", &hwnd);
             return;
         }
 
-        debug!("unregister_window | handle: 0x{:X} registered", &hwnd);
+        trace!("unregister_window | handle: 0x{:X} registered", &hwnd);
 
         self.windows.remove(&hwnd);
         // TODO: HandleWindowRemove(window);
