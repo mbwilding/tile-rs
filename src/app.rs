@@ -118,12 +118,13 @@ impl eframe::App for App {
                         .iter_mut()
                         .for_each(|(_, window)| {
                             let title = window.title();
-                            let location = window.location();
 
-                            egui::containers::collapsing_header::CollapsingHeader::new(&title)
-                                .id_source(format!("window_{}", &title))
+                            egui::containers::collapsing_header::CollapsingHeader::new(title)
+                                .id_source(format!("window_{}", title))
                                 .default_open(false)
                                 .show(ui, |ui| {
+                                    let location = window.location();
+
                                     ui.horizontal(|ui| {
                                         if ui.button("Normal").clicked() {
                                             window.show_normal();
