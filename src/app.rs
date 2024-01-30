@@ -119,8 +119,8 @@ impl eframe::App for App {
                         .for_each(|(_, window)| {
                             let title = window.title();
 
-                            egui::containers::collapsing_header::CollapsingHeader::new(title)
-                                .id_source(format!("window_{}", title))
+                            egui::containers::collapsing_header::CollapsingHeader::new(&title)
+                                .id_source(format!("window_{}", &title))
                                 .default_open(false)
                                 .show(ui, |ui| {
                                     let location = window.location();

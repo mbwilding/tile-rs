@@ -151,8 +151,8 @@ impl WindowsWindow {
         self.did_manual_hide
     }
 
-    pub fn title(&self) -> &str {
-        &Self::title_from_hwnd(self.hwnd())
+    pub fn title(&self) -> String {
+        Self::title_from_hwnd(self.hwnd())
     }
 
     pub fn title_from_hwnd(hwnd: HWND) -> String {
