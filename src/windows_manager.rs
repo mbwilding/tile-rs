@@ -227,7 +227,7 @@ impl WindowsManager {
                 self.handle_window_add(hwnd, false);
             } else {
                 if let Some(floating) = self.floating.get_mut(&hwnd) {
-                    *floating = true; // TODO: Check this
+                    *floating = true;
                 }
 
                 self.handle_window_remove(hwnd);
