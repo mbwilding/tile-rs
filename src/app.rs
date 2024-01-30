@@ -64,6 +64,8 @@ impl eframe::App for App {
                 if ui.button("Settings").clicked() {
                     self.window_state.settings = !self.window_state.settings;
                 }
+
+                egui::warn_if_debug_build(ui);
             });
         });
 
@@ -187,20 +189,27 @@ impl eframe::App for App {
         });
 
         egui::TopBottomPanel::bottom("bottom_panel").show(ctx, |ui| {
-            let moving = self.windows_manager.windows.iter().find_map(|(_, window)| {
-                if window.is_mouse_moving {
-                    Some(window.title())
-                } else {
-                    None
+            let moving_window = self
+                .windows_manager
+                .windows
+                .values()
+                .find(|window| window.is_mouse_moving);
+
+            ui.horizontal_centered(|ui| {
+                if let Some(moving_window) = moving_window {
+                    let location = moving_window.location();
+                    ui.horizontal(|ui| {
+                        ui.monospace(format!(
+                            "Moving: [title({}), location({} x {}), bounds({} x {})]",
+                            moving_window.title(),
+                            location.x,
+                            location.y,
+                            location.width,
+                            location.height
+                        ));
+                    });
                 }
             });
-
-            if let Some(moving) = moving {
-                ui.horizontal(|ui| {
-                    ui.monospace("Moving:");
-                    ui.label(moving);
-                });
-            }
         });
     }
 
