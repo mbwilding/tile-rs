@@ -39,7 +39,7 @@ lazy_static! {
 pub struct WindowsManager {
     pub windows: BTreeMap<isize, WindowsWindow>,
     pub floating: HashMap<isize, bool>,
-    pub workspace: HashMap<isize, u8>,
+
     mouse_move_lock: Mutex<()>,
     mouse_move_window: Option<isize>,
     layout_engine_type: LayoutEngineType,

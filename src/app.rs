@@ -275,7 +275,10 @@ impl eframe::App for App {
                         .get_monitor_at_point(point.x, point.y)
                 };
 
-                ui.monospace(format!("[Mouse: display({})]", &monitor.screen.device_name));
+                ui.monospace(format!(
+                    "[Mouse: display({}), primary({})]",
+                    &monitor.screen.device_name, &monitor.screen.primary
+                ));
 
                 if let Some(moving_window) = moving_window {
                     let location = moving_window.location();
