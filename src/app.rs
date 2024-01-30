@@ -6,6 +6,8 @@ use crate::windows_manager::WindowsManager;
 use eframe::egui;
 use eframe::emath::Align;
 use serde::{Deserialize, Serialize};
+use windows::Win32::Foundation::POINT;
+use windows::Win32::UI::WindowsAndMessaging::GetCursorPos;
 
 #[derive(Deserialize, Serialize)]
 #[serde(default)]
@@ -265,11 +267,21 @@ impl eframe::App for App {
                 .find(|window| window.is_mouse_moving);
 
             ui.horizontal_centered(|ui| {
+                let monitor = unsafe {
+                    // TODO: Set to absolute min?
+                    let mut point = POINT::default();
+                    let _ = GetCursorPos(&mut point);
+                    self.monitor_container
+                        .get_monitor_at_point(point.x, point.y)
+                };
+
+                ui.monospace(format!("[Mouse: display({})]", &monitor.screen.device_name));
+
                 if let Some(moving_window) = moving_window {
                     let location = moving_window.location();
                     ui.horizontal(|ui| {
                         ui.monospace(format!(
-                            "Moving: [title({}), location({} x {}), bounds({} x {})]",
+                            "[Moving: title({}), location({} x {}), bounds({} x {})]",
                             moving_window.title(),
                             location.x,
                             location.y,

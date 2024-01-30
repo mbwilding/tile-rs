@@ -3,10 +3,16 @@ use crate::csharp::structs::{Point, Rectangle};
 use crate::monitor::Monitor;
 use log::debug;
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct NativeMonitorContainer {
     pub monitors: Vec<Monitor>,
     pub focused_monitor: usize,
+}
+
+impl Default for NativeMonitorContainer {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl NativeMonitorContainer {
