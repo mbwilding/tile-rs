@@ -14,7 +14,6 @@ use windows::Win32::Graphics::Gdi::{
 };
 use windows::Win32::UI::WindowsAndMessaging::MONITORINFOF_PRIMARY;
 
-#[allow(dead_code)]
 const PRIMARY_MONITOR: isize = 0xBAADF00D;
 
 #[allow(dead_code)]
