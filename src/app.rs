@@ -74,7 +74,7 @@ impl eframe::App for App {
                     .default_open(true)
                     .show(ui, |ui| {
                         ui.horizontal(|ui| {
-                            ui.label("Layout");
+                            ui.heading("Layout");
                             ui.with_layout(egui::Layout::right_to_left(Align::Center), |ui| {
                                 let response = egui::ComboBox::new("layout_engine_type", "")
                                     .selected_text(self.settings.layout_engine_type.to_string())
@@ -99,12 +99,12 @@ impl eframe::App for App {
 
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.horizontal(|ui| {
-                ui.label("Windows");
+                ui.heading("Windows");
                 ui.label(self.windows_manager.windows.len().to_string());
             });
 
             ui.horizontal(|ui| {
-                ui.label("Floating");
+                ui.heading("Floating");
                 ui.label(self.windows_manager.floating.len().to_string());
             });
 
@@ -117,36 +117,59 @@ impl eframe::App for App {
                         .windows
                         .iter_mut()
                         .for_each(|(_, window)| {
-                            ui.horizontal(|ui| {
-                                let mut title = window.title();
-                                if title.is_empty() {
-                                    title.push('_');
-                                }
+                            let title = window.title();
+                            let location = window.location();
 
-                                if ui.button("Normal").clicked() {
-                                    window.show_normal();
-                                }
+                            egui::containers::collapsing_header::CollapsingHeader::new(&title)
+                                .id_source(format!("window_{}", &title))
+                                .default_open(false)
+                                .show(ui, |ui| {
+                                    ui.horizontal(|ui| {
+                                        if ui.button("Normal").clicked() {
+                                            window.show_normal();
+                                        }
 
-                                if ui.button("Minimize").clicked() {
-                                    window.show_minimized();
-                                }
+                                        if ui.button("Minimize").clicked() {
+                                            window.show_minimized();
+                                        }
 
-                                if ui.button("Maximize").clicked() {
-                                    window.show_maximized();
-                                }
+                                        if ui.button("Maximize").clicked() {
+                                            window.show_maximized();
+                                        }
 
-                                if ui.button("Close").clicked() {
-                                    window.close();
-                                }
+                                        if ui.button("Close").clicked() {
+                                            window.close();
+                                        }
+                                    });
 
-                                ui.label(format!(
-                                    "{} ({})    Class: {} | Path:{}",
-                                    title,
-                                    window.location(),
-                                    window.class(),
-                                    window.process_name(),
-                                ));
-                            });
+                                    ui.horizontal(|ui| {
+                                        ui.heading("State");
+                                        ui.label(format!("{:?}", location.state));
+                                    });
+
+                                    ui.horizontal(|ui| {
+                                        ui.heading("Location");
+                                        ui.label(format!(
+                                            "xy: {} x {} | wh: {} x {}",
+                                            location.x, location.y, location.width, location.height
+                                        ));
+                                    });
+
+                                    ui.horizontal(|ui| {
+                                        ui.heading("Class");
+                                        ui.label(window.class());
+                                    });
+
+                                    ui.horizontal(|ui| {
+                                        ui.heading("Path");
+                                        ui.label(window.process_name());
+                                    });
+
+                                    ui.horizontal(|ui| {
+                                        ui.heading("Process");
+                                        ui.label(window.process_file_name());
+                                    });
+                                });
                         });
                 });
         });
