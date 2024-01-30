@@ -191,7 +191,7 @@ impl WindowsManager {
                     }
                 }
             } else {
-                debug!("{:?}", keys);
+                trace!("{:?}", keys);
             }
         }
     }
