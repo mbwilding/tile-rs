@@ -1,4 +1,4 @@
-use crate::keys::Keyboard;
+use crate::keys::Keys;
 use crate::layout_engines::LayoutEngineType;
 use crate::windows_defer_pos_handle::WindowsDeferPosHandle;
 use crate::windows_window::WindowsWindow;
@@ -21,9 +21,18 @@ use windows::Win32::UI::WindowsAndMessaging::{
     WINEVENT_OUTOFCONTEXT, WM_LBUTTONUP,
 };
 
+type EventType = (u32, isize);
+
 lazy_static! {
-    static ref EVENT: Mutex<(Sender<(u32, isize)>, Receiver<(u32, isize)>)> =
-        Mutex::new(crossbeam_channel::unbounded());
+    static ref EVENT: (Sender<EventType>, Receiver<EventType>) = crossbeam_channel::unbounded();
+}
+
+lazy_static! {
+    static ref KEYS: (Sender<Keys>, Receiver<Keys>) = crossbeam_channel::unbounded();
+}
+
+lazy_static! {
+    static ref MOUSE: (Sender<()>, Receiver<()>) = crossbeam_channel::unbounded();
 }
 
 #[derive(Debug, Default)]
@@ -159,32 +168,41 @@ impl WindowsManager {
         });
     }
 
-    pub fn update(&mut self) {
-        // Events
-        {
-            let (_, receiver) = &*EVENT.lock().unwrap();
-            receiver
-                .try_recv()
-                .ok()
-                .map(|(event_type, hwnd)| match event_type {
-                    EVENT_OBJECT_SHOW => self.register_window(hwnd),
-                    EVENT_OBJECT_DESTROY => self.unregister_window(hwnd),
-                    EVENT_OBJECT_CLOAKED => self.update_window(hwnd, WindowUpdateType::Hide),
-                    EVENT_OBJECT_UNCLOAKED => self.update_window(hwnd, WindowUpdateType::Show),
-                    EVENT_SYSTEM_MINIMIZESTART => {
-                        self.update_window(hwnd, WindowUpdateType::MinimizeStart)
-                    }
-                    EVENT_SYSTEM_MINIMIZEEND => {
-                        self.update_window(hwnd, WindowUpdateType::MinimizeEnd)
-                    }
-                    EVENT_SYSTEM_FOREGROUND => {
-                        self.update_window(hwnd, WindowUpdateType::Foreground)
-                    }
-                    EVENT_SYSTEM_MOVESIZESTART => self.start_move_window(hwnd),
-                    EVENT_SYSTEM_MOVESIZEEND => self.end_move_window(hwnd),
-                    EVENT_OBJECT_LOCATIONCHANGE => self.window_move(hwnd),
-                    _ => error!("event_callback | event_type: UNKNOWN({:?})", event_type),
-                });
+    pub fn check(&mut self) {
+        self.handle_event();
+        self.handle_keys();
+        self.handle_mouse();
+    }
+
+    fn handle_event(&mut self) {
+        if let Ok((event, hwnd)) = EVENT.1.try_recv() {
+            match event {
+                EVENT_OBJECT_SHOW => self.register_window(hwnd),
+                EVENT_OBJECT_DESTROY => self.unregister_window(hwnd),
+                EVENT_OBJECT_CLOAKED => self.update_window(hwnd, WindowUpdateType::Hide),
+                EVENT_OBJECT_UNCLOAKED => self.update_window(hwnd, WindowUpdateType::Show),
+                EVENT_SYSTEM_MINIMIZESTART => {
+                    self.update_window(hwnd, WindowUpdateType::MinimizeStart)
+                }
+                EVENT_SYSTEM_MINIMIZEEND => self.update_window(hwnd, WindowUpdateType::MinimizeEnd),
+                EVENT_SYSTEM_FOREGROUND => self.update_window(hwnd, WindowUpdateType::Foreground),
+                EVENT_SYSTEM_MOVESIZESTART => self.start_move_window(hwnd),
+                EVENT_SYSTEM_MOVESIZEEND => self.end_move_window(hwnd),
+                EVENT_OBJECT_LOCATIONCHANGE => self.window_move(hwnd),
+                _ => error!("event_callback | event_type: UNKNOWN({:?})", event),
+            };
+        }
+    }
+
+    fn handle_keys(&mut self) {
+        if let Ok(_keys) = KEYS.1.try_recv() {
+            // TODO
+        }
+    }
+
+    fn handle_mouse(&mut self) {
+        if let Ok(_mouse) = MOUSE.1.try_recv() {
+            //
         }
     }
 
@@ -252,9 +270,8 @@ impl WindowsManager {
         w_param: WPARAM,
         l_param: LPARAM,
     ) -> LRESULT {
-        if w_param.0 == WM_LBUTTONUP as usize {
-            trace!("mouse_callback | WM_LBUTTONUP");
-            // TODO: HandleWindowMoveEnd();
+        if w_param.0 == WM_LBUTTONUP as usize && MOUSE.0.send(()).is_err() {
+            error!("mouse_callback | failed to send");
         }
 
         CallNextHookEx(None, n_code, w_param, l_param)
@@ -265,8 +282,10 @@ impl WindowsManager {
         w_param: WPARAM,
         l_param: LPARAM,
     ) -> LRESULT {
-        if let Some(_keyboard) = Keyboard::new(n_code, w_param, l_param) {
-            // TODO: Do something, perhaps crossbeam_channel
+        if let Some(keys) = Keys::new(n_code, w_param, l_param) {
+            if KEYS.0.send(keys).is_err() {
+                error!("keyboard_callback | failed to send");
+            };
         };
 
         CallNextHookEx(None, n_code, w_param, l_param)
@@ -283,12 +302,16 @@ impl WindowsManager {
     ) {
         let hwnd = hwnd.0;
 
-        if id_child == 0 && id_object == 0 && hwnd != 0 {
+        if !(id_child == 0 && id_object == 0 && hwnd != 0) {
             return;
         }
 
-        let (sender, _) = &*EVENT.lock().unwrap();
-        sender.send((event_type, hwnd)).unwrap();
+        if EVENT.0.send((event_type, hwnd)).is_err() {
+            error!(
+                "event_callback | failed to send | event_type: {:?}, hwnd: 0x{:X}",
+                event_type, hwnd
+            );
+        }
     }
 
     fn register_window(&mut self, hwnd: isize) {
@@ -300,7 +323,10 @@ impl WindowsManager {
         trace!("register_window | handle: 0x{:X} not registered", &hwnd);
 
         match WindowsWindow::new(hwnd) {
-            Ok(window) => self.windows.insert(hwnd, window),
+            Ok(window) => {
+                debug!("register_window | handle: 0x{:X} registered", &hwnd);
+                self.windows.insert(hwnd, window)
+            }
             Err(_) => None,
         };
     }

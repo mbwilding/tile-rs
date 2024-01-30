@@ -34,6 +34,12 @@ const IGNORE_WINDOW_CLASSES: [&str; 9] = [
     "Windows.UI.Composition.DesktopWindowContentBridge",
 ];
 
+const IGNORE_PROGRAMS: [&str; 3] = [
+    "StartMenuExperienceHost.exe",
+    "SearchHost.exe",
+    "ApplicationFrameHost.exe",
+];
+
 const IGNORE_WINDOW_TITLES: [&str; 1] = ["Windows Input Experience"];
 
 #[derive(Debug, Eq, Hash, PartialEq, Clone)]
@@ -63,14 +69,13 @@ impl WindowsWindow {
             }
 
             let title = Self::title_from_hwnd(hwnd);
-            if IGNORE_WINDOW_TITLES.contains(&title.as_str()) {
-                let msg = format!("Filtered title: {}", &title);
+            if title.is_empty() {
+                let msg = "Filtered empty title";
                 trace!("{}", &msg);
                 bail!("{}", &msg);
             }
-
-            if Self::title_from_hwnd(hwnd).is_empty() {
-                let msg = "Filtered empty title";
+            if IGNORE_WINDOW_TITLES.contains(&title.as_str()) {
+                let msg = format!("Filtered title: {}", &title);
                 trace!("{}", &msg);
                 bail!("{}", &msg);
             }
@@ -122,6 +127,15 @@ impl WindowsWindow {
         };
 
         trace!("process_file_name: {:?}", process_file_name);
+
+        // Filtering
+        {
+            if IGNORE_PROGRAMS.contains(&process_file_name.as_str()) {
+                let msg = format!("Filtered program: {}", &process_file_name);
+                trace!("{}", &msg);
+                bail!("{}", &msg);
+            }
+        }
 
         Ok(Self {
             handle,

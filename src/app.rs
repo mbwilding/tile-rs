@@ -1,6 +1,6 @@
 use crate::layout_engines::LayoutEngineType;
 use crate::native_monitor_container::NativeMonitorContainer;
-use crate::windows_manager;
+
 use crate::windows_manager::WindowsManager;
 use eframe::egui;
 use eframe::emath::Align;
@@ -43,6 +43,9 @@ impl App {
 
 impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        ctx.request_repaint(); // Temp fix to keep loop going
+        self.windows_manager.check();
+
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
                 // if !cfg!(target_arch = "wasm32") {
