@@ -145,6 +145,7 @@ impl eframe::App for App {
                     .default_open(true)
                     .show(ui, |ui| {
                         self.key_bindings.iter_mut().for_each(|(action, keys)| {
+                            ui.separator();
                             ui.heading(format!("{:?}", action));
 
                             egui::ComboBox::new(format!("bindings_{:?}", action), "Key")
