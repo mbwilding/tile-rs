@@ -1,4 +1,5 @@
 use log::trace;
+use serde::{Deserialize, Serialize};
 use windows::Win32::Foundation::{LPARAM, WPARAM};
 use windows::Win32::UI::Input::KeyboardAndMouse::{
     GetAsyncKeyState, VK_CONTROL, VK_LWIN, VK_MENU, VK_RWIN, VK_SHIFT,
@@ -6,7 +7,7 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
 use windows::Win32::UI::WindowsAndMessaging::KBDLLHOOKSTRUCT;
 use windows::Win32::UI::WindowsAndMessaging::{WM_KEYDOWN, WM_SYSKEYDOWN};
 
-#[derive(Debug)]
+#[derive(Debug, Default, PartialEq, PartialOrd, Ord, Eq, Serialize, Deserialize)]
 pub struct Keys {
     pub shift: bool,
     pub ctrl: bool,
@@ -52,8 +53,9 @@ impl Keys {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum VirtualKey {
+    #[default]
     Unknown = 0x00,
     Backspace = 0x08,
     Tab = 0x09,

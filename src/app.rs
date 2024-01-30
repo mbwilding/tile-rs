@@ -1,15 +1,19 @@
 use crate::layout_engines::LayoutEngineType;
 use crate::native_monitor_container::NativeMonitorContainer;
+use std::collections::BTreeMap;
 
+use crate::action::Action;
+use crate::keys::{Keys, VirtualKey};
 use crate::windows_manager::WindowsManager;
 use eframe::egui;
 use eframe::emath::Align;
 use serde::{Deserialize, Serialize};
 
-#[derive(Default, Deserialize, Serialize)]
+#[derive(Deserialize, Serialize)]
 #[serde(default)]
 pub struct App {
     pub settings: Settings,
+    pub key_bindings: BTreeMap<Keys, Action>,
 
     #[serde(skip)]
     pub windows_manager: WindowsManager,
@@ -19,6 +23,39 @@ pub struct App {
 
     #[serde(skip)]
     window_state: WindowState,
+}
+
+impl Default for App {
+    fn default() -> Self {
+        let key_bindings = BTreeMap::from([
+            (
+                Keys {
+                    shift: true,
+                    ctrl: true,
+                    key: VirtualKey::A,
+                    ..Default::default()
+                },
+                Action::Start,
+            ),
+            (
+                Keys {
+                    shift: true,
+                    ctrl: true,
+                    key: VirtualKey::S,
+                    ..Default::default()
+                },
+                Action::Stop,
+            ),
+        ]);
+
+        Self {
+            settings: Default::default(),
+            key_bindings,
+            windows_manager: Default::default(),
+            monitor_container: Default::default(),
+            window_state: Default::default(),
+        }
+    }
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]
@@ -44,7 +81,10 @@ impl App {
 impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         ctx.request_repaint(); // Temp fix to keep loop going
-        self.windows_manager.check();
+
+        self.windows_manager.handle_window();
+        self.windows_manager.handle_keys(&self.key_bindings);
+        self.windows_manager.handle_mouse();
 
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {

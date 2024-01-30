@@ -1,3 +1,4 @@
+use crate::action::Action;
 use crate::keys::Keys;
 use crate::layout_engines::LayoutEngineType;
 use crate::windows_defer_pos_handle::WindowsDeferPosHandle;
@@ -158,13 +159,7 @@ impl WindowsManager {
         });
     }
 
-    pub fn check(&mut self) {
-        self.handle_window();
-        self.handle_keys();
-        self.handle_mouse();
-    }
-
-    fn handle_window(&mut self) {
+    pub fn handle_window(&mut self) {
         if let Ok((event, hwnd)) = EVENT.1.try_recv() {
             match event {
                 EVENT_OBJECT_SHOW => self.register_window(hwnd),
@@ -184,13 +179,24 @@ impl WindowsManager {
         }
     }
 
-    fn handle_keys(&mut self) {
+    pub fn handle_keys(&mut self, mappings: &BTreeMap<Keys, Action>) {
         if let Ok(keys) = KEYS.1.try_recv() {
-            debug!("{:?}", keys);
+            if let Some(action) = mappings.get(&keys) {
+                match action {
+                    Action::Stop => {
+                        debug!("Stopping");
+                    }
+                    Action::Start => {
+                        debug!("Starting");
+                    }
+                }
+            } else {
+                debug!("{:?}", keys);
+            }
         }
     }
 
-    fn handle_mouse(&mut self) {
+    pub fn handle_mouse(&mut self) {
         if let Ok(_mouse) = MOUSE.1.try_recv() {
             debug!("mouse_release")
         }

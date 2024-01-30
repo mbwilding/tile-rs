@@ -1,6 +1,7 @@
 // hide console window on Windows
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod action;
 mod app;
 mod csharp;
 mod keys;
@@ -15,7 +16,6 @@ mod windows_defer_pos_handle;
 mod windows_manager;
 mod windows_window;
 mod workspace;
-
 
 use eframe::egui;
 use log::info;
