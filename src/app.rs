@@ -1,5 +1,6 @@
+use crate::layout_engines::LayoutEngineType;
 use crate::native_monitor_container::NativeMonitorContainer;
-use crate::windows_manager;
+use crate::{layout_engines, windows_manager};
 use eframe::egui;
 use eframe::emath::Align;
 use serde::{Deserialize, Serialize};
@@ -7,7 +8,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Default, Deserialize, Serialize)]
 #[serde(default)]
 pub struct App {
-    settings: Settings,
+    pub settings: Settings,
 
     #[serde(skip)]
     monitor_container: NativeMonitorContainer,
@@ -16,14 +17,16 @@ pub struct App {
     window_state: WindowState,
 }
 
-#[derive(Deserialize, Serialize)]
-struct Settings {
-    test: f32,
+#[derive(Debug, Deserialize, Serialize)]
+pub struct Settings {
+    pub layout_engine_type: LayoutEngineType,
 }
 
 impl Default for Settings {
     fn default() -> Self {
-        Self { test: 0.0 }
+        Self {
+            layout_engine_type: LayoutEngineType::Full,
+        }
     }
 }
 
@@ -68,15 +71,23 @@ impl eframe::App for App {
         egui::Window::new("Settings")
             .open(&mut self.window_state.settings)
             .show(ctx, |ui| {
-                let settings = &mut self.settings;
-
                 egui::containers::collapsing_header::CollapsingHeader::new("Parameters")
                     .default_open(true)
                     .show(ui, |ui| {
                         ui.horizontal(|ui| {
-                            ui.label("Test");
+                            ui.label("Layout");
                             ui.with_layout(egui::Layout::right_to_left(Align::Center), |ui| {
-                                ui.add(egui::Slider::new(&mut settings.test, 0.0..=600.0));
+                                egui::ComboBox::new("layout_engine_type", "")
+                                    .selected_text(self.settings.layout_engine_type.to_string())
+                                    .show_ui(ui, |ui| {
+                                        for option in LayoutEngineType::variants() {
+                                            ui.selectable_value(
+                                                &mut self.settings.layout_engine_type,
+                                                option,
+                                                option.to_string(),
+                                            );
+                                        }
+                                    });
                             });
                         });
                     });

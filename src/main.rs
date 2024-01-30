@@ -16,10 +16,9 @@ mod windows_manager;
 mod windows_window;
 mod workspace;
 
-use crate::csharp::screen::Screen;
 use crate::layout_engines::LayoutEngine;
 use eframe::egui;
-use log::{debug, info};
+use log::info;
 
 pub const APP_NAME: &str = "Tile-RS";
 
@@ -27,8 +26,6 @@ fn main() -> eframe::Result<()> {
     env_logger::init();
     info!("Starting Tile-RS");
     single::check();
-
-    println!("{:#?}", Screen::all_screens());
 
     let native_options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
@@ -48,13 +45,7 @@ fn main() -> eframe::Result<()> {
             let app = app::App::new(cc);
 
             let mut windows_manager = windows_manager::INSTANCE.lock().unwrap();
-            windows_manager.init();
-
-            // TODO: TESTING CODE
-            let mut engine = layout_engines::grid_layout_engine::GridLayoutEngine::new();
-            let windows = windows_manager.windows.values().collect::<Vec<_>>();
-            let layout = engine.calc_layout(windows.as_slice(), 3840, 2160);
-            debug!("layout: {:#?}", layout);
+            windows_manager.init(app.settings.layout_engine_type);
 
             Box::new(app)
         }),

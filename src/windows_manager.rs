@@ -1,4 +1,5 @@
 use crate::keys::Keyboard;
+use crate::layout_engines::LayoutEngineType;
 use crate::windows_defer_pos_handle::WindowsDeferPosHandle;
 use crate::windows_window::WindowsWindow;
 use anyhow::Result;
@@ -30,10 +31,13 @@ pub struct WindowsManager {
     pub floating: HashMap<isize, bool>,
     mouse_move_lock: Mutex<()>,
     mouse_move_window: Option<isize>,
+    layout_engine_type: LayoutEngineType,
 }
 
 impl WindowsManager {
-    pub fn init(&mut self) {
+    pub fn init(&mut self, layout_engine_type: LayoutEngineType) {
+        self.layout_engine_type = layout_engine_type;
+
         info!("Initializing hooks");
 
         let module_handle = unsafe {
@@ -151,6 +155,11 @@ impl WindowsManager {
                 }
             }
         });
+    }
+
+    pub fn change_layout(&mut self, layout_engine_type: LayoutEngineType) {
+        self.layout_engine_type = layout_engine_type;
+        info!("Changed layout: {:?}", &layout_engine_type);
     }
 
     unsafe extern "system" fn enum_windows_callback(hwnd: HWND, userdata: LPARAM) -> BOOL {
