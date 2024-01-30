@@ -30,6 +30,7 @@ impl Rectangle {
         }
     }
 
+    #[allow(dead_code)]
     pub fn from_points(location: Point, size: Size) -> Rectangle {
         Rectangle {
             x: location.x,
@@ -39,6 +40,7 @@ impl Rectangle {
         }
     }
 
+    #[allow(dead_code)]
     pub fn from_ltrb(left: i32, top: i32, right: i32, bottom: i32) -> Rectangle {
         Rectangle {
             x: left,
@@ -48,6 +50,7 @@ impl Rectangle {
         }
     }
 
+    #[allow(dead_code)]
     pub fn location(&self) -> Point {
         Point {
             x: self.x,
@@ -55,6 +58,7 @@ impl Rectangle {
         }
     }
 
+    #[allow(dead_code)]
     pub fn size(&self) -> Size {
         Size {
             width: self.width,
@@ -62,10 +66,12 @@ impl Rectangle {
         }
     }
 
+    #[allow(dead_code)]
     pub fn left(&self) -> i32 {
         self.x
     }
 
+    #[allow(dead_code)]
     pub fn top(&self) -> i32 {
         self.y
     }
@@ -78,22 +84,27 @@ impl Rectangle {
         self.y + self.height
     }
 
+    #[allow(dead_code)]
     pub fn is_empty(&self) -> bool {
         self.width == 0 && self.height == 0 && self.x == 0 && self.y == 0
     }
 
+    #[allow(dead_code)]
     pub fn contains(&self, x: i32, y: i32) -> bool {
         x >= self.x && x < self.right() && y >= self.y && y < self.bottom()
     }
 
+    #[allow(dead_code)]
     pub fn contains_point(&self, point: Point) -> bool {
         self.contains(point.x, point.y)
     }
 
+    #[allow(dead_code)]
     pub fn contains_rect(&self, rect: Rectangle) -> bool {
         self.contains(rect.x, rect.y) && self.contains(rect.right(), rect.bottom())
     }
 
+    #[allow(dead_code)]
     pub fn inflate(&mut self, width: i32, height: i32) {
         self.x -= width;
         self.y -= height;
@@ -101,6 +112,7 @@ impl Rectangle {
         self.height += 2 * height;
     }
 
+    #[allow(dead_code)]
     pub fn intersect(&mut self, other: Rectangle) {
         let x1 = self.x.max(other.x);
         let y1 = self.y.max(other.y);
@@ -114,12 +126,14 @@ impl Rectangle {
         }
     }
 
+    #[allow(dead_code)]
     pub fn intersect_with(&self, other: Rectangle) -> Rectangle {
         let mut result = *self;
         result.intersect(other);
         result
     }
 
+    #[allow(dead_code)]
     pub fn intersects_with(&self, other: Rectangle) -> bool {
         self.x < other.x + other.width
             && other.x < self.x + self.width
@@ -127,6 +141,7 @@ impl Rectangle {
             && other.y < self.y + self.height
     }
 
+    #[allow(dead_code)]
     pub fn union_with(&self, other: Rectangle) -> Rectangle {
         let x1 = self.x.min(other.x);
         let y1 = self.y.min(other.y);
@@ -136,6 +151,7 @@ impl Rectangle {
         Rectangle::new(x1, y1, x2 - x1, y2 - y1)
     }
 
+    #[allow(dead_code)]
     pub fn offset(&mut self, dx: i32, dy: i32) {
         self.x += dx;
         self.y += dy;

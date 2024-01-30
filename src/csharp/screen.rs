@@ -14,8 +14,10 @@ use windows::Win32::Graphics::Gdi::{
 };
 use windows::Win32::UI::WindowsAndMessaging::MONITORINFOF_PRIMARY;
 
+#[allow(dead_code)]
 const PRIMARY_MONITOR: isize = 0xBAADF00D;
 
+#[allow(dead_code)]
 struct MonitorData {
     pub hmonitor: HMONITOR,
     pub monitor_info: MONITORINFOEXW,
@@ -34,8 +36,8 @@ impl Screen {
     pub fn new(monitor: isize, hdc: Option<HDC>) -> Screen {
         let mut screen_dc = hdc;
 
-        let mut bounds = Rectangle::default();
-        let mut primary = false;
+        let bounds;
+        let primary;
         let mut device_name = String::new();
         let hmonitor = HMONITOR(monitor);
         let mut bit_depth = 0;
@@ -158,6 +160,7 @@ impl Screen {
         }
     }
 
+    #[allow(dead_code)]
     pub fn primary_screen() -> Screen {
         if multi_monitor_support() {
             // TODO: unwrap

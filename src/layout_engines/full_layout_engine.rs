@@ -9,6 +9,7 @@ pub struct FullLayoutEngine {
 }
 
 impl FullLayoutEngine {
+    #[allow(dead_code)]
     pub fn new() -> Self {
         Self {
             last_full: None,

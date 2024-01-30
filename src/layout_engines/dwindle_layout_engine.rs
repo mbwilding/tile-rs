@@ -18,6 +18,7 @@ pub struct DwindleLayoutEngine {
 }
 
 impl DwindleLayoutEngine {
+    #[allow(dead_code)]
     pub fn new() -> DwindleLayoutEngine {
         DwindleLayoutEngine {
             num_in_primary: 1,

@@ -12,22 +12,27 @@ impl Monitor {
         Self { index, screen }
     }
 
+    #[allow(dead_code)]
     pub fn name(&self) -> &str {
         &self.screen.device_name
     }
 
+    #[allow(dead_code)]
     pub fn width(&self) -> i32 {
         self.screen.working_area().width
     }
 
+    #[allow(dead_code)]
     pub fn height(&self) -> i32 {
         self.screen.working_area().height
     }
 
+    #[allow(dead_code)]
     pub fn x(&self) -> i32 {
         self.screen.working_area().x
     }
 
+    #[allow(dead_code)]
     pub fn y(&self) -> i32 {
         self.screen.working_area().y
     }

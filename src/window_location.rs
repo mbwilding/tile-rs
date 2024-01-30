@@ -21,6 +21,7 @@ impl WindowLocation {
         }
     }
 
+    #[allow(dead_code)]
     pub fn is_point_inside(&self, x: i32, y: i32) -> bool {
         self.x <= x && x <= self.x + self.width && self.y <= y && y <= self.y + self.height
     }

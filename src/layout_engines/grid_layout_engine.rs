@@ -8,6 +8,7 @@ pub struct GridLayoutEngine {
 }
 
 impl GridLayoutEngine {
+    #[allow(dead_code)]
     pub fn new() -> Self {
         Self {
             name: "full".to_string(),

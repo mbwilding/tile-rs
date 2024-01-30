@@ -58,32 +58,32 @@ impl WindowsManager {
             })
         };
 
-        let win_event_hooks = [
-            Self::register_event_hook(EVENT_OBJECT_DESTROY, EVENT_OBJECT_SHOW, module_handle),
-            Self::register_event_hook(EVENT_OBJECT_CLOAKED, EVENT_OBJECT_UNCLOAKED, module_handle),
-            Self::register_event_hook(
+        let event_windows = [
+            Self::register_window_hook(EVENT_OBJECT_DESTROY, EVENT_OBJECT_SHOW, module_handle),
+            Self::register_window_hook(EVENT_OBJECT_CLOAKED, EVENT_OBJECT_UNCLOAKED, module_handle),
+            Self::register_window_hook(
                 EVENT_SYSTEM_MINIMIZESTART,
                 EVENT_SYSTEM_MINIMIZEEND,
                 module_handle,
             ),
-            Self::register_event_hook(
+            Self::register_window_hook(
                 EVENT_SYSTEM_MOVESIZESTART,
                 EVENT_SYSTEM_MOVESIZEEND,
                 module_handle,
             ),
-            Self::register_event_hook(
+            Self::register_window_hook(
                 EVENT_SYSTEM_FOREGROUND,
                 EVENT_SYSTEM_FOREGROUND,
                 module_handle,
             ),
-            Self::register_event_hook(
+            Self::register_window_hook(
                 EVENT_OBJECT_LOCATIONCHANGE,
                 EVENT_OBJECT_LOCATIONCHANGE,
                 module_handle,
             ),
         ];
 
-        let _event_mouse = unsafe {
+        let event_mouse = unsafe {
             SetWindowsHookExW(WH_MOUSE_LL, Some(Self::mouse_callback), module_handle, 0)
                 .unwrap_or_else(|e| {
                     error!("Failed SetWindowsHookExW[Mouse]: {:?}", e);
@@ -91,7 +91,7 @@ impl WindowsManager {
                 })
         };
 
-        let _event_keyboard = unsafe {
+        let event_keyboard = unsafe {
             SetWindowsHookExW(
                 WH_KEYBOARD_LL,
                 Some(Self::keyboard_callback),
@@ -137,12 +137,18 @@ impl WindowsManager {
             }
 
             unsafe {
-                UnhookWindowsHookEx(_event_mouse).unwrap_or_else(|e| {
-                    error!("Failed UnhookWindowsHookEx: {:?}", e);
+                UnhookWindowsHookEx(event_mouse).unwrap_or_else(|e| {
+                    error!("Failed UnhookWindowsHookEx (mouse): {:?}", e);
                 })
             };
 
-            for hooks in win_event_hooks.into_iter() {
+            unsafe {
+                UnhookWindowsHookEx(event_keyboard).unwrap_or_else(|e| {
+                    error!("Failed UnhookWindowsHookEx (keyboard): {:?}", e);
+                })
+            };
+
+            for hooks in event_windows.into_iter() {
                 unsafe {
                     if !UnhookWinEvent(hooks).as_bool() {
                         error!("Failed UnhookWinEvent");
@@ -153,12 +159,12 @@ impl WindowsManager {
     }
 
     pub fn check(&mut self) {
-        self.handle_event();
+        self.handle_window();
         self.handle_keys();
         self.handle_mouse();
     }
 
-    fn handle_event(&mut self) {
+    fn handle_window(&mut self) {
         if let Ok((event, hwnd)) = EVENT.1.try_recv() {
             match event {
                 EVENT_OBJECT_SHOW => self.register_window(hwnd),
@@ -173,20 +179,20 @@ impl WindowsManager {
                 EVENT_SYSTEM_MOVESIZESTART => self.start_move_window(hwnd),
                 EVENT_SYSTEM_MOVESIZEEND => self.end_move_window(hwnd),
                 EVENT_OBJECT_LOCATIONCHANGE => self.window_move(hwnd),
-                _ => error!("event_callback | event_type: UNKNOWN({:?})", event),
+                _ => error!("handle_window | event_type: UNKNOWN({:?})", event),
             };
         }
     }
 
     fn handle_keys(&mut self) {
-        if let Ok(_keys) = KEYS.1.try_recv() {
-            // TODO
+        if let Ok(keys) = KEYS.1.try_recv() {
+            debug!("{:?}", keys);
         }
     }
 
     fn handle_mouse(&mut self) {
         if let Ok(_mouse) = MOUSE.1.try_recv() {
-            //
+            debug!("mouse_release")
         }
     }
 
@@ -195,12 +201,14 @@ impl WindowsManager {
         info!("Changed layout engine: {:?}", &layout_engine_type);
     }
 
+    #[allow(dead_code)]
     fn defer_windows_pos(count: i32) -> Result<WindowsDeferPosHandle> {
         let info = unsafe { BeginDeferWindowPos(count)? };
 
         Ok(WindowsDeferPosHandle::new(info))
     }
 
+    #[allow(dead_code)]
     pub fn toggle_focused_window_tiling(&mut self) {
         let hwnd_option = self
             .windows
@@ -226,13 +234,13 @@ impl WindowsManager {
         }
     }
 
-    fn register_event_hook(event_min: u32, event_max: u32, hmodule: HMODULE) -> HWINEVENTHOOK {
+    fn register_window_hook(event_min: u32, event_max: u32, hmodule: HMODULE) -> HWINEVENTHOOK {
         unsafe {
             SetWinEventHook(
                 event_min,
                 event_max,
                 hmodule,
-                Some(Self::event_callback),
+                Some(Self::window_callback),
                 0,
                 0,
                 WINEVENT_OUTOFCONTEXT,
@@ -378,7 +386,7 @@ impl WindowsManager {
         CallNextHookEx(None, n_code, w_param, l_param)
     }
 
-    unsafe extern "system" fn event_callback(
+    unsafe extern "system" fn window_callback(
         _h_win_event_hook: HWINEVENTHOOK,
         event_type: u32,
         hwnd: HWND,
@@ -409,7 +417,10 @@ pub enum WindowUpdateType {
     MinimizeStart,
     MinimizeEnd,
     Foreground,
+    #[allow(dead_code)]
     MoveStart,
+    #[allow(dead_code)]
     MoveEnd,
+    #[allow(dead_code)]
     Move,
 }

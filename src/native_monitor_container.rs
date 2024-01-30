@@ -10,6 +10,7 @@ pub struct NativeMonitorContainer {
 }
 
 impl NativeMonitorContainer {
+    #[allow(dead_code)]
     pub fn new() -> Self {
         let mut screens = Screen::all_screens();
         screens.sort_by_key(|s| !s.primary);
@@ -30,14 +31,17 @@ impl NativeMonitorContainer {
         }
     }
 
+    #[allow(dead_code)]
     pub fn num_monitors(&self) -> i32 {
         self.monitors.len() as i32
     }
 
+    #[allow(dead_code)]
     pub fn focused_monitor(&self) -> &Monitor {
         self.get_monitor_at_index(self.focused_monitor).unwrap()
     }
 
+    #[allow(dead_code)]
     pub fn get_all_monitors(&self) -> &Vec<Monitor> {
         &self.monitors
     }
@@ -46,6 +50,7 @@ impl NativeMonitorContainer {
         self.monitors.get(index)
     }
 
+    #[allow(dead_code)]
     pub fn get_monitor_at_point(&self, x: i32, y: i32) -> &Monitor {
         let screen = Screen::from_point(Point { x, y });
         let monitor = self
@@ -59,6 +64,7 @@ impl NativeMonitorContainer {
         }
     }
 
+    #[allow(dead_code)]
     pub fn get_monitor_at_rect(&self, x: i32, y: i32, width: i32, height: i32) -> &Monitor {
         let screen = Screen::from_rectangle(Rectangle::new(x, y, width, height));
         let monitor = self
@@ -72,6 +78,7 @@ impl NativeMonitorContainer {
         }
     }
 
+    #[allow(dead_code)]
     pub fn get_next_monitor(&self) -> &Monitor {
         let next_monitor_index = self.focused_monitor + 1;
         let next_monitor = self.get_monitor_at_index(next_monitor_index);
@@ -82,6 +89,7 @@ impl NativeMonitorContainer {
         }
     }
 
+    #[allow(dead_code)]
     pub fn get_previous_monitor(&self) -> &Monitor {
         let previous_monitor_index = self.focused_monitor - 1;
         let previous_monitor = self.get_monitor_at_index(previous_monitor_index);

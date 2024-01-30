@@ -16,6 +16,7 @@ pub struct WindowsDeferPosHandle {
 }
 
 impl WindowsDeferPosHandle {
+    #[allow(dead_code)]
     pub fn new(info: HDWP) -> Self {
         Self {
             info,
@@ -25,6 +26,7 @@ impl WindowsDeferPosHandle {
         }
     }
 
+    #[allow(dead_code)]
     pub fn defer_window_pos(&mut self, window: WindowsWindow, location: WindowLocation) {
         let mut flags =
             SWP_FRAMECHANGED | SWP_NOACTIVATE | SWP_NOCOPYBITS | SWP_NOZORDER | SWP_NOOWNERZORDER;

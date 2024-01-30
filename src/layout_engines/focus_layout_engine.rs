@@ -13,6 +13,7 @@ pub struct FocusLayoutEngine {
 }
 
 impl FocusLayoutEngine {
+    #[allow(dead_code)]
     pub fn new() -> FocusLayoutEngine {
         FocusLayoutEngine {
             num_in_primary: 1,

@@ -208,6 +208,7 @@ impl WindowsWindow {
         }
     }
 
+    #[allow(dead_code)]
     pub fn offset(&self) -> Rectangle {
         let handle = HWND(self.handle);
 
@@ -247,6 +248,7 @@ impl WindowsWindow {
         }
     }
 
+    #[allow(dead_code)]
     pub fn process_id(&self) -> u32 {
         self.process_id
     }
@@ -281,6 +283,7 @@ impl WindowsWindow {
         unsafe { IsZoomed(self.hwnd()).as_bool() }
     }
 
+    #[allow(dead_code)]
     pub fn is_fullscreen(handle: HWND) -> bool {
         unsafe {
             let mut window_rect = RECT::default();
@@ -304,6 +307,7 @@ impl WindowsWindow {
         false
     }
 
+    #[allow(dead_code)]
     pub fn focus(&self) {
         if !self.is_focused() {
             unsafe {
@@ -314,6 +318,7 @@ impl WindowsWindow {
         }
     }
 
+    #[allow(dead_code)]
     pub fn hide(&mut self) {
         trace!("[{}] :: Hide", self.title());
 
@@ -356,6 +361,7 @@ impl WindowsWindow {
         }
     }
 
+    #[allow(dead_code)]
     pub fn show_in_current_state(&mut self) {
         if self.is_minimized() {
             self.show_minimized();
@@ -368,6 +374,7 @@ impl WindowsWindow {
         // TODO: WindowUpdated?.Invoke(this);
     }
 
+    #[allow(dead_code)]
     pub fn bring_to_top(&self) {
         unsafe {
             let _ = BringWindowToTop(self.hwnd());
@@ -384,6 +391,7 @@ impl WindowsWindow {
         }
     }
 
+    #[allow(dead_code)]
     pub fn notify_updated(&mut self) {
         // TODO: WindowUpdated?.Invoke(this);
     }
