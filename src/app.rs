@@ -1,6 +1,5 @@
 use crate::layout_engines::LayoutEngineType;
 use crate::native_monitor_container::NativeMonitorContainer;
-use std::collections::BTreeMap;
 
 use crate::action::Action;
 use crate::keys::{Keys, VirtualKey};

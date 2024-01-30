@@ -1,7 +1,6 @@
 use crate::window_location::WindowLocation;
 use crate::windows_window::WindowsWindow;
 use serde::{Deserialize, Serialize};
-use std::fmt::Display;
 
 pub mod dwindle_layout_engine;
 pub mod focus_layout_engine;

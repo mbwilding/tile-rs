@@ -1,4 +1,3 @@
-use crate::layout_engines::LayoutEngineType;
 use log::trace;
 use serde::{Deserialize, Serialize};
 use windows::Win32::Foundation::{LPARAM, WPARAM};
