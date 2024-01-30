@@ -150,9 +150,14 @@ impl eframe::App for App {
 
                                     ui.horizontal(|ui| {
                                         ui.heading("Location");
+                                        ui.label(format!("{} x {}", location.x, location.y));
+                                    });
+
+                                    ui.horizontal(|ui| {
+                                        ui.heading("Bounds");
                                         ui.label(format!(
-                                            "xy: {} x {} | wh: {} x {}",
-                                            location.x, location.y, location.width, location.height
+                                            "{} x {}",
+                                            location.width, location.height
                                         ));
                                     });
 
