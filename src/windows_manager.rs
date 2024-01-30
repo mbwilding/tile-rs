@@ -3,10 +3,11 @@ use crate::layout_engines::LayoutEngineType;
 use crate::windows_defer_pos_handle::WindowsDeferPosHandle;
 use crate::windows_window::WindowsWindow;
 use anyhow::Result;
+use crossbeam_channel::{Receiver, Sender};
 use lazy_static::lazy_static;
 use log::{debug, error, info, trace};
 use std::collections::{BTreeMap, HashMap};
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 use windows::core::PCWSTR;
 use windows::Win32::Foundation::{BOOL, HMODULE, HWND, LPARAM, LRESULT, TRUE, WPARAM};
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
@@ -21,14 +22,15 @@ use windows::Win32::UI::WindowsAndMessaging::{
 };
 
 lazy_static! {
-    pub static ref INSTANCE: Arc<Mutex<WindowsManager>> =
-        Arc::new(Mutex::new(WindowsManager::default()));
+    static ref EVENT: Mutex<(Sender<(u32, isize)>, Receiver<(u32, isize)>)> =
+        Mutex::new(crossbeam_channel::unbounded());
 }
 
 #[derive(Debug, Default)]
 pub struct WindowsManager {
     pub windows: BTreeMap<isize, WindowsWindow>,
     pub floating: HashMap<isize, bool>,
+    pub workspace: HashMap<isize, u8>,
     mouse_move_lock: Mutex<()>,
     mouse_move_window: Option<isize>,
     layout_engine_type: LayoutEngineType,
@@ -36,7 +38,7 @@ pub struct WindowsManager {
 
 impl WindowsManager {
     pub fn init(&mut self, layout_engine_type: LayoutEngineType) {
-        self.layout_engine_type = layout_engine_type;
+        self.change_layout(layout_engine_type);
 
         info!("Initializing hooks");
 
@@ -157,9 +159,38 @@ impl WindowsManager {
         });
     }
 
+    pub fn update(&mut self) {
+        // Events
+        {
+            let (_, receiver) = &*EVENT.lock().unwrap();
+            receiver
+                .try_recv()
+                .ok()
+                .map(|(event_type, hwnd)| match event_type {
+                    EVENT_OBJECT_SHOW => self.register_window(hwnd),
+                    EVENT_OBJECT_DESTROY => self.unregister_window(hwnd),
+                    EVENT_OBJECT_CLOAKED => self.update_window(hwnd, WindowUpdateType::Hide),
+                    EVENT_OBJECT_UNCLOAKED => self.update_window(hwnd, WindowUpdateType::Show),
+                    EVENT_SYSTEM_MINIMIZESTART => {
+                        self.update_window(hwnd, WindowUpdateType::MinimizeStart)
+                    }
+                    EVENT_SYSTEM_MINIMIZEEND => {
+                        self.update_window(hwnd, WindowUpdateType::MinimizeEnd)
+                    }
+                    EVENT_SYSTEM_FOREGROUND => {
+                        self.update_window(hwnd, WindowUpdateType::Foreground)
+                    }
+                    EVENT_SYSTEM_MOVESIZESTART => self.start_move_window(hwnd),
+                    EVENT_SYSTEM_MOVESIZEEND => self.end_move_window(hwnd),
+                    EVENT_OBJECT_LOCATIONCHANGE => self.window_move(hwnd),
+                    _ => error!("event_callback | event_type: UNKNOWN({:?})", event_type),
+                });
+        }
+    }
+
     pub fn change_layout(&mut self, layout_engine_type: LayoutEngineType) {
         self.layout_engine_type = layout_engine_type;
-        info!("Changed layout: {:?}", &layout_engine_type);
+        info!("Changed layout engine: {:?}", &layout_engine_type);
     }
 
     unsafe extern "system" fn enum_windows_callback(hwnd: HWND, userdata: LPARAM) -> BOOL {
@@ -203,12 +234,12 @@ impl WindowsManager {
     unsafe fn register_event_hook(
         event_min: u32,
         event_max: u32,
-        module_handle: HMODULE,
+        hmodule: HMODULE,
     ) -> HWINEVENTHOOK {
         SetWinEventHook(
             event_min,
             event_max,
-            module_handle,
+            hmodule,
             Some(Self::event_callback),
             0,
             0,
@@ -252,33 +283,12 @@ impl WindowsManager {
     ) {
         let hwnd = hwnd.0;
 
-        if Self::event_window_is_valid(id_child, id_object, hwnd) {
-            let mut instance = INSTANCE.lock().unwrap();
-
-            match event_type {
-                EVENT_OBJECT_SHOW => instance.register_window(hwnd),
-                EVENT_OBJECT_DESTROY => instance.unregister_window(hwnd),
-                EVENT_OBJECT_CLOAKED => instance.update_window(hwnd, WindowUpdateType::Hide),
-                EVENT_OBJECT_UNCLOAKED => instance.update_window(hwnd, WindowUpdateType::Show),
-                EVENT_SYSTEM_MINIMIZESTART => {
-                    instance.update_window(hwnd, WindowUpdateType::MinimizeStart)
-                }
-                EVENT_SYSTEM_MINIMIZEEND => {
-                    instance.update_window(hwnd, WindowUpdateType::MinimizeEnd)
-                }
-                EVENT_SYSTEM_FOREGROUND => {
-                    instance.update_window(hwnd, WindowUpdateType::Foreground)
-                }
-                EVENT_SYSTEM_MOVESIZESTART => instance.start_move_window(hwnd),
-                EVENT_SYSTEM_MOVESIZEEND => instance.end_move_window(hwnd),
-                EVENT_OBJECT_LOCATIONCHANGE => instance.window_move(hwnd),
-                _ => error!("event_callback | event_type: UNKNOWN({:?})", event_type),
-            }
+        if id_child == 0 && id_object == 0 && hwnd != 0 {
+            return;
         }
-    }
 
-    fn event_window_is_valid(id_child: i32, id_object: i32, hwnd: isize) -> bool {
-        id_child == 0 && id_object == 0 && hwnd != 0
+        let (sender, _) = &*EVENT.lock().unwrap();
+        sender.send((event_type, hwnd)).unwrap();
     }
 
     fn register_window(&mut self, hwnd: isize) {

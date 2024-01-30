@@ -1,6 +1,7 @@
 use crate::layout_engines::LayoutEngineType;
 use crate::native_monitor_container::NativeMonitorContainer;
-use crate::{layout_engines, windows_manager};
+use crate::windows_manager;
+use crate::windows_manager::WindowsManager;
 use eframe::egui;
 use eframe::emath::Align;
 use serde::{Deserialize, Serialize};
@@ -11,23 +12,18 @@ pub struct App {
     pub settings: Settings,
 
     #[serde(skip)]
+    pub windows_manager: WindowsManager,
+
+    #[serde(skip)]
     monitor_container: NativeMonitorContainer,
 
     #[serde(skip)]
     window_state: WindowState,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub struct Settings {
     pub layout_engine_type: LayoutEngineType,
-}
-
-impl Default for Settings {
-    fn default() -> Self {
-        Self {
-            layout_engine_type: LayoutEngineType::Full,
-        }
-    }
 }
 
 #[derive(Default)]
@@ -77,7 +73,7 @@ impl eframe::App for App {
                         ui.horizontal(|ui| {
                             ui.label("Layout");
                             ui.with_layout(egui::Layout::right_to_left(Align::Center), |ui| {
-                                egui::ComboBox::new("layout_engine_type", "")
+                                let response = egui::ComboBox::new("layout_engine_type", "")
                                     .selected_text(self.settings.layout_engine_type.to_string())
                                     .show_ui(ui, |ui| {
                                         for option in LayoutEngineType::variants() {
@@ -88,21 +84,25 @@ impl eframe::App for App {
                                             );
                                         }
                                     });
+
+                                if response.response.changed() {
+                                    self.windows_manager
+                                        .change_layout(self.settings.layout_engine_type);
+                                }
                             });
                         });
                     });
             });
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            let mut windows_manager = windows_manager::INSTANCE.lock().unwrap();
-
             ui.horizontal(|ui| {
                 ui.label("Windows");
-                ui.label(windows_manager.windows.len().to_string());
+                ui.label(self.windows_manager.windows.len().to_string());
             });
+
             ui.horizontal(|ui| {
                 ui.label("Floating");
-                ui.label(windows_manager.floating.len().to_string());
+                ui.label(self.windows_manager.floating.len().to_string());
             });
 
             ui.separator();
@@ -110,38 +110,41 @@ impl eframe::App for App {
             egui::containers::collapsing_header::CollapsingHeader::new("Windows")
                 .default_open(true)
                 .show(ui, |ui| {
-                    windows_manager.windows.iter_mut().for_each(|(_, window)| {
-                        ui.horizontal(|ui| {
-                            let mut title = window.title();
-                            if title.is_empty() {
-                                title.push('_');
-                            }
+                    self.windows_manager
+                        .windows
+                        .iter_mut()
+                        .for_each(|(_, window)| {
+                            ui.horizontal(|ui| {
+                                let mut title = window.title();
+                                if title.is_empty() {
+                                    title.push('_');
+                                }
 
-                            if ui.button("Normal").clicked() {
-                                window.show_normal();
-                            }
+                                if ui.button("Normal").clicked() {
+                                    window.show_normal();
+                                }
 
-                            if ui.button("Minimize").clicked() {
-                                window.show_minimized();
-                            }
+                                if ui.button("Minimize").clicked() {
+                                    window.show_minimized();
+                                }
 
-                            if ui.button("Maximize").clicked() {
-                                window.show_maximized();
-                            }
+                                if ui.button("Maximize").clicked() {
+                                    window.show_maximized();
+                                }
 
-                            if ui.button("Close").clicked() {
-                                window.close();
-                            }
+                                if ui.button("Close").clicked() {
+                                    window.close();
+                                }
 
-                            ui.label(format!(
-                                "{} ({})    Class: {} | Path:{}",
-                                title,
-                                window.location(),
-                                window.class(),
-                                window.process_name(),
-                            ));
+                                ui.label(format!(
+                                    "{} ({})    Class: {} | Path:{}",
+                                    title,
+                                    window.location(),
+                                    window.class(),
+                                    window.process_name(),
+                                ));
+                            });
                         });
-                    });
                 });
         });
     }
