@@ -174,6 +174,22 @@ impl eframe::App for App {
                         });
                 });
         });
+
+        egui::TopBottomPanel::bottom("bottom_panel").show(ctx, |ui| {
+            let moving = self.windows_manager.windows.iter().find_map(|(_, window)| {
+                if window.is_mouse_moving {
+                    Some(window.title())
+                } else {
+                    None
+                }
+            });
+
+            if let Some(moving) = moving {
+                ui.horizontal(|ui| {
+                    ui.monospace(format!("Moving: {}", moving));
+                });
+            }
+        });
     }
 
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
