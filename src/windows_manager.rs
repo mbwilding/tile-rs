@@ -197,7 +197,7 @@ impl WindowsManager {
 
     pub fn handle_mouse(&mut self) {
         if let Ok(_mouse) = MOUSE.1.try_recv() {
-            debug!("mouse_release")
+            trace!("mouse_release")
         }
     }
 
