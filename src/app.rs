@@ -110,70 +110,76 @@ impl eframe::App for App {
 
             ui.separator();
 
-            egui::containers::collapsing_header::CollapsingHeader::new("Windows")
-                .default_open(true)
+            egui::ScrollArea::vertical()
+                .auto_shrink(false)
                 .show(ui, |ui| {
-                    self.windows_manager
-                        .windows
-                        .iter_mut()
-                        .for_each(|(_, window)| {
-                            let title = window.title();
+                    egui::containers::collapsing_header::CollapsingHeader::new("Windows")
+                        .default_open(true)
+                        .show(ui, |ui| {
+                            self.windows_manager
+                                .windows
+                                .iter_mut()
+                                .for_each(|(_, window)| {
+                                    let title = window.title();
 
-                            egui::containers::collapsing_header::CollapsingHeader::new(&title)
-                                .id_source(format!("window_{}", &title))
-                                .default_open(false)
-                                .show(ui, |ui| {
-                                    let location = window.location();
+                                    egui::containers::collapsing_header::CollapsingHeader::new(
+                                        &title,
+                                    )
+                                    .id_source(format!("window_{}", &title))
+                                    .default_open(false)
+                                    .show(ui, |ui| {
+                                        let location = window.location();
 
-                                    ui.horizontal(|ui| {
-                                        if ui.button("Normal").clicked() {
-                                            window.show_normal();
-                                        }
+                                        ui.horizontal(|ui| {
+                                            if ui.button("Normal").clicked() {
+                                                window.show_normal();
+                                            }
 
-                                        if ui.button("Minimize").clicked() {
-                                            window.show_minimized();
-                                        }
+                                            if ui.button("Minimize").clicked() {
+                                                window.show_minimized();
+                                            }
 
-                                        if ui.button("Maximize").clicked() {
-                                            window.show_maximized();
-                                        }
+                                            if ui.button("Maximize").clicked() {
+                                                window.show_maximized();
+                                            }
 
-                                        if ui.button("Close").clicked() {
-                                            window.close();
-                                        }
-                                    });
+                                            if ui.button("Close").clicked() {
+                                                window.close();
+                                            }
+                                        });
 
-                                    ui.horizontal(|ui| {
-                                        ui.heading("State");
-                                        ui.label(format!("{:?}", location.state));
-                                    });
+                                        ui.horizontal(|ui| {
+                                            ui.heading("State");
+                                            ui.label(format!("{:?}", location.state));
+                                        });
 
-                                    ui.horizontal(|ui| {
-                                        ui.heading("Location");
-                                        ui.label(format!("{} x {}", location.x, location.y));
-                                    });
+                                        ui.horizontal(|ui| {
+                                            ui.heading("Location");
+                                            ui.label(format!("{} x {}", location.x, location.y));
+                                        });
 
-                                    ui.horizontal(|ui| {
-                                        ui.heading("Bounds");
-                                        ui.label(format!(
-                                            "{} x {}",
-                                            location.width, location.height
-                                        ));
-                                    });
+                                        ui.horizontal(|ui| {
+                                            ui.heading("Bounds");
+                                            ui.label(format!(
+                                                "{} x {}",
+                                                location.width, location.height
+                                            ));
+                                        });
 
-                                    ui.horizontal(|ui| {
-                                        ui.heading("Class");
-                                        ui.label(window.class());
-                                    });
+                                        ui.horizontal(|ui| {
+                                            ui.heading("Class");
+                                            ui.label(window.class());
+                                        });
 
-                                    ui.horizontal(|ui| {
-                                        ui.heading("Path");
-                                        ui.label(window.process_name());
-                                    });
+                                        ui.horizontal(|ui| {
+                                            ui.heading("Path");
+                                            ui.label(window.process_name());
+                                        });
 
-                                    ui.horizontal(|ui| {
-                                        ui.heading("Process");
-                                        ui.label(window.process_file_name());
+                                        ui.horizontal(|ui| {
+                                            ui.heading("Process");
+                                            ui.label(window.process_file_name());
+                                        });
                                     });
                                 });
                         });
@@ -191,7 +197,8 @@ impl eframe::App for App {
 
             if let Some(moving) = moving {
                 ui.horizontal(|ui| {
-                    ui.monospace(format!("Moving: {}", moving));
+                    ui.monospace("Moving:");
+                    ui.label(moving);
                 });
             }
         });
