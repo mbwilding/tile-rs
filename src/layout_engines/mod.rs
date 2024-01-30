@@ -34,19 +34,6 @@ impl LayoutEngineType {
     }
 }
 
-impl Display for LayoutEngineType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            LayoutEngineType::Dwindle => write!(f, "Dwindle"),
-            LayoutEngineType::Focus => write!(f, "Focus"),
-            LayoutEngineType::Full => write!(f, "Full"),
-            LayoutEngineType::Grid => write!(f, "Grid"),
-            // LayoutEngineType::Panel => write!(f, "Panel"),
-            // LayoutEngineType::Tall => write!(f, "Tall"),
-        }
-    }
-}
-
 pub trait LayoutEngine {
     // the name of the layout engine
     fn name(&self) -> &str;

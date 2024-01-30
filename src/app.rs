@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 #[serde(default)]
 pub struct App {
     pub settings: Settings,
-    pub key_bindings: BTreeMap<Keys, Action>,
+    pub key_bindings: Vec<(Action, Keys)>,
 
     #[serde(skip)]
     pub windows_manager: WindowsManager,
@@ -27,24 +27,24 @@ pub struct App {
 
 impl Default for App {
     fn default() -> Self {
-        let key_bindings = BTreeMap::from([
+        let key_bindings = Vec::from([
             (
+                Action::Start,
                 Keys {
                     shift: true,
                     ctrl: true,
                     key: VirtualKey::A,
                     ..Default::default()
                 },
-                Action::Start,
             ),
             (
+                Action::Stop,
                 Keys {
                     shift: true,
                     ctrl: true,
                     key: VirtualKey::S,
                     ..Default::default()
                 },
-                Action::Stop,
             ),
         ]);
 
@@ -119,13 +119,16 @@ impl eframe::App for App {
                             ui.heading("Layout");
                             ui.with_layout(egui::Layout::right_to_left(Align::Center), |ui| {
                                 let response = egui::ComboBox::new("layout_engine_type", "")
-                                    .selected_text(self.settings.layout_engine_type.to_string())
+                                    .selected_text(format!(
+                                        "{:?}",
+                                        self.settings.layout_engine_type
+                                    ))
                                     .show_ui(ui, |ui| {
                                         for option in LayoutEngineType::variants() {
                                             ui.selectable_value(
                                                 &mut self.settings.layout_engine_type,
                                                 option,
-                                                option.to_string(),
+                                                format!("{:?}", option),
                                             );
                                         }
                                     });
@@ -134,6 +137,33 @@ impl eframe::App for App {
                                     self.windows_manager
                                         .change_layout(self.settings.layout_engine_type);
                                 }
+                            });
+                        });
+                    });
+
+                egui::containers::collapsing_header::CollapsingHeader::new("Bindings")
+                    .default_open(true)
+                    .show(ui, |ui| {
+                        self.key_bindings.iter_mut().for_each(|(action, keys)| {
+                            ui.heading(format!("{:?}", action));
+
+                            egui::ComboBox::new(format!("bindings_{:?}", action), "Key")
+                                .selected_text(format!("{:?}", keys.key))
+                                .show_ui(ui, |ui| {
+                                    for option in VirtualKey::variants() {
+                                        ui.selectable_value(
+                                            &mut keys.key,
+                                            option,
+                                            format!("{:?}", option),
+                                        );
+                                    }
+                                });
+
+                            ui.horizontal(|ui| {
+                                ui.checkbox(&mut keys.shift, "Shift");
+                                ui.checkbox(&mut keys.ctrl, "Ctrl");
+                                ui.checkbox(&mut keys.alt, "Alt");
+                                ui.checkbox(&mut keys.win, "Win");
                             });
                         });
                     });

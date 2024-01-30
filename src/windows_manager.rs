@@ -9,7 +9,6 @@ use lazy_static::lazy_static;
 use log::{debug, error, info, trace};
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Mutex;
-use windows::core::PCWSTR;
 use windows::Win32::Foundation::{BOOL, HMODULE, HWND, LPARAM, LRESULT, TRUE, WPARAM};
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::UI::Accessibility::{SetWinEventHook, UnhookWinEvent, HWINEVENTHOOK};
@@ -53,7 +52,7 @@ impl WindowsManager {
         info!("Initializing hooks");
 
         let module_handle = unsafe {
-            GetModuleHandleW(PCWSTR::null()).unwrap_or_else(|e| {
+            GetModuleHandleW(None).unwrap_or_else(|e| {
                 error!("Failed GetModuleHandleW: {:?}", e);
                 std::process::exit(69);
             })
@@ -179,19 +178,19 @@ impl WindowsManager {
         }
     }
 
-    pub fn handle_keys(&mut self, mappings: &BTreeMap<Keys, Action>) {
+    pub fn handle_keys(&mut self, mappings: &Vec<(Action, Keys)>) {
         if let Ok(keys) = KEYS.1.try_recv() {
-            if let Some(action) = mappings.get(&keys) {
-                match action {
-                    Action::Stop => {
-                        debug!("Stopping");
-                    }
-                    Action::Start => {
-                        debug!("Starting");
+            for (action, key) in mappings {
+                if *key == keys {
+                    match action {
+                        Action::Start => {
+                            info!("action: Start");
+                        }
+                        Action::Stop => {
+                            info!("action: Stop");
+                        }
                     }
                 }
-            } else {
-                trace!("{:?}", keys);
             }
         }
     }
