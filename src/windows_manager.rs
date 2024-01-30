@@ -59,44 +59,28 @@ impl WindowsManager {
         };
 
         let win_event_hooks = [
-            unsafe {
-                Self::register_event_hook(EVENT_OBJECT_DESTROY, EVENT_OBJECT_SHOW, module_handle)
-            },
-            unsafe {
-                Self::register_event_hook(
-                    EVENT_OBJECT_CLOAKED,
-                    EVENT_OBJECT_UNCLOAKED,
-                    module_handle,
-                )
-            },
-            unsafe {
-                Self::register_event_hook(
-                    EVENT_SYSTEM_MINIMIZESTART,
-                    EVENT_SYSTEM_MINIMIZEEND,
-                    module_handle,
-                )
-            },
-            unsafe {
-                Self::register_event_hook(
-                    EVENT_SYSTEM_MOVESIZESTART,
-                    EVENT_SYSTEM_MOVESIZEEND,
-                    module_handle,
-                )
-            },
-            unsafe {
-                Self::register_event_hook(
-                    EVENT_SYSTEM_FOREGROUND,
-                    EVENT_SYSTEM_FOREGROUND,
-                    module_handle,
-                )
-            },
-            unsafe {
-                Self::register_event_hook(
-                    EVENT_OBJECT_LOCATIONCHANGE,
-                    EVENT_OBJECT_LOCATIONCHANGE,
-                    module_handle,
-                )
-            },
+            Self::register_event_hook(EVENT_OBJECT_DESTROY, EVENT_OBJECT_SHOW, module_handle),
+            Self::register_event_hook(EVENT_OBJECT_CLOAKED, EVENT_OBJECT_UNCLOAKED, module_handle),
+            Self::register_event_hook(
+                EVENT_SYSTEM_MINIMIZESTART,
+                EVENT_SYSTEM_MINIMIZEEND,
+                module_handle,
+            ),
+            Self::register_event_hook(
+                EVENT_SYSTEM_MOVESIZESTART,
+                EVENT_SYSTEM_MOVESIZEEND,
+                module_handle,
+            ),
+            Self::register_event_hook(
+                EVENT_SYSTEM_FOREGROUND,
+                EVENT_SYSTEM_FOREGROUND,
+                module_handle,
+            ),
+            Self::register_event_hook(
+                EVENT_OBJECT_LOCATIONCHANGE,
+                EVENT_OBJECT_LOCATIONCHANGE,
+                module_handle,
+            ),
         ];
 
         let _event_mouse = unsafe {
@@ -211,15 +195,8 @@ impl WindowsManager {
         info!("Changed layout engine: {:?}", &layout_engine_type);
     }
 
-    unsafe extern "system" fn enum_windows_callback(hwnd: HWND, userdata: LPARAM) -> BOOL {
-        let windows = &mut *(userdata.0 as *mut Vec<HWND>);
-        windows.push(hwnd);
-
-        TRUE
-    }
-
-    unsafe fn defer_windows_pos(count: i32) -> Result<WindowsDeferPosHandle> {
-        let info = BeginDeferWindowPos(count)?;
+    fn defer_windows_pos(count: i32) -> Result<WindowsDeferPosHandle> {
+        let info = unsafe { BeginDeferWindowPos(count)? };
 
         Ok(WindowsDeferPosHandle::new(info))
     }
@@ -249,68 +226,17 @@ impl WindowsManager {
         }
     }
 
-    unsafe fn register_event_hook(
-        event_min: u32,
-        event_max: u32,
-        hmodule: HMODULE,
-    ) -> HWINEVENTHOOK {
-        SetWinEventHook(
-            event_min,
-            event_max,
-            hmodule,
-            Some(Self::event_callback),
-            0,
-            0,
-            WINEVENT_OUTOFCONTEXT,
-        )
-    }
-
-    unsafe extern "system" fn mouse_callback(
-        n_code: i32,
-        w_param: WPARAM,
-        l_param: LPARAM,
-    ) -> LRESULT {
-        if w_param.0 == WM_LBUTTONUP as usize && MOUSE.0.send(()).is_err() {
-            error!("mouse_callback | failed to send");
-        }
-
-        CallNextHookEx(None, n_code, w_param, l_param)
-    }
-
-    unsafe extern "system" fn keyboard_callback(
-        n_code: i32,
-        w_param: WPARAM,
-        l_param: LPARAM,
-    ) -> LRESULT {
-        if let Some(keys) = Keys::new(n_code, w_param, l_param) {
-            if KEYS.0.send(keys).is_err() {
-                error!("keyboard_callback | failed to send");
-            };
-        };
-
-        CallNextHookEx(None, n_code, w_param, l_param)
-    }
-
-    unsafe extern "system" fn event_callback(
-        _h_win_event_hook: HWINEVENTHOOK,
-        event_type: u32,
-        hwnd: HWND,
-        id_object: i32,
-        id_child: i32,
-        _id_event_thread: u32,
-        _dwms_event_time: u32,
-    ) {
-        let hwnd = hwnd.0;
-
-        if !(id_child == 0 && id_object == 0 && hwnd != 0) {
-            return;
-        }
-
-        if EVENT.0.send((event_type, hwnd)).is_err() {
-            error!(
-                "event_callback | failed to send | event_type: {:?}, hwnd: 0x{:X}",
-                event_type, hwnd
-            );
+    fn register_event_hook(event_min: u32, event_max: u32, hmodule: HMODULE) -> HWINEVENTHOOK {
+        unsafe {
+            SetWinEventHook(
+                event_min,
+                event_max,
+                hmodule,
+                Some(Self::event_callback),
+                0,
+                0,
+                WINEVENT_OUTOFCONTEXT,
+            )
         }
     }
 
@@ -417,6 +343,62 @@ impl WindowsManager {
 
     fn handle_window_remove(&mut self, _handle: isize) {
         // TODO: WindowDestroyed?.Invoke(window);
+    }
+
+    unsafe extern "system" fn enum_windows_callback(hwnd: HWND, userdata: LPARAM) -> BOOL {
+        let windows = &mut *(userdata.0 as *mut Vec<HWND>);
+        windows.push(hwnd);
+
+        TRUE
+    }
+
+    unsafe extern "system" fn mouse_callback(
+        n_code: i32,
+        w_param: WPARAM,
+        l_param: LPARAM,
+    ) -> LRESULT {
+        if w_param.0 == WM_LBUTTONUP as usize && MOUSE.0.send(()).is_err() {
+            error!("mouse_callback | failed to send");
+        }
+
+        CallNextHookEx(None, n_code, w_param, l_param)
+    }
+
+    unsafe extern "system" fn keyboard_callback(
+        n_code: i32,
+        w_param: WPARAM,
+        l_param: LPARAM,
+    ) -> LRESULT {
+        if let Some(keys) = Keys::new(n_code, w_param, l_param) {
+            if KEYS.0.send(keys).is_err() {
+                error!("keyboard_callback | failed to send");
+            };
+        };
+
+        CallNextHookEx(None, n_code, w_param, l_param)
+    }
+
+    unsafe extern "system" fn event_callback(
+        _h_win_event_hook: HWINEVENTHOOK,
+        event_type: u32,
+        hwnd: HWND,
+        id_object: i32,
+        id_child: i32,
+        _id_event_thread: u32,
+        _dwms_event_time: u32,
+    ) {
+        let hwnd = hwnd.0;
+
+        if !(id_child == 0 && id_object == 0 && hwnd != 0) {
+            return;
+        }
+
+        if EVENT.0.send((event_type, hwnd)).is_err() {
+            error!(
+                "event_callback | failed to send | event_type: {:?}, hwnd: 0x{:X}",
+                event_type, hwnd
+            );
+        }
     }
 }
 
