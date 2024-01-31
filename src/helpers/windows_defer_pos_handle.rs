@@ -1,5 +1,5 @@
-use crate::window_location::WindowLocation;
-use crate::window_state::WindowState;
+use crate::classes::window_location::WindowLocation;
+use crate::classes::window_state::WindowState;
 use crate::windows_window::WindowsWindow;
 use windows::Win32::UI::WindowsAndMessaging::{
     DeferWindowPos, EndDeferWindowPos, ShowWindow, HDWP, SWP_FRAMECHANGED, SWP_NOACTIVATE,
@@ -27,7 +27,7 @@ impl<'a> WindowsDeferPosHandle<'a> {
     }
 
     #[allow(dead_code)]
-    pub fn defer_window_pos(&mut self, window: &'a WindowsWindow, location: WindowLocation) {
+    pub fn defer_window_pos(&mut self, window: &'a WindowsWindow, location: &WindowLocation) {
         let mut flags =
             SWP_FRAMECHANGED | SWP_NOACTIVATE | SWP_NOCOPYBITS | SWP_NOZORDER | SWP_NOOWNERZORDER;
 

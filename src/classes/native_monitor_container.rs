@@ -1,6 +1,6 @@
+use crate::classes::monitor::Monitor;
 use crate::csharp::screen::Screen;
 use crate::csharp::structs::{Point, Rectangle};
-use crate::monitor::Monitor;
 use log::debug;
 
 #[derive(Debug)]

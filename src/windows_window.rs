@@ -1,7 +1,7 @@
+use crate::classes::window_location::WindowLocation;
+use crate::classes::window_state::WindowState;
 use crate::csharp::structs::Rectangle;
-use crate::win32_helpers;
-use crate::window_location::WindowLocation;
-use crate::window_state::WindowState;
+use crate::helpers::win32_helpers;
 use anyhow::{bail, Result};
 use log::{debug, error, trace, warn};
 use std::ffi::c_void;
@@ -214,7 +214,7 @@ impl WindowsWindow {
 
         let mut rect1: RECT = RECT::default();
         unsafe {
-            GetWindowRect(handle, &mut rect1).unwrap(); // TODO: Look into this
+            let _ = GetWindowRect(handle, &mut rect1);
         }
 
         let x1 = rect1.left;
@@ -225,9 +225,8 @@ impl WindowsWindow {
         let mut rect2 = RECT::default();
         let size = size_of::<RECT>() as u32;
         unsafe {
-            let rect_ptr = &mut rect2 as *mut _ as *mut c_void; // TODO: Look into this
-            DwmGetWindowAttribute(handle, DWMWA_EXTENDED_FRAME_BOUNDS, rect_ptr, size).unwrap();
-            // TODO: Look into this
+            let rect_ptr = &mut rect2 as *mut _ as *mut c_void;
+            let _ = DwmGetWindowAttribute(handle, DWMWA_EXTENDED_FRAME_BOUNDS, rect_ptr, size);
         }
 
         let x2 = rect2.left;
@@ -284,11 +283,11 @@ impl WindowsWindow {
     }
 
     #[allow(dead_code)]
-    pub fn is_fullscreen(handle: HWND) -> bool {
+    pub fn is_fullscreen(&self) -> bool {
         unsafe {
             let mut window_rect = RECT::default();
-            if GetWindowRect(handle, &mut window_rect).is_ok() {
-                let monitor = MonitorFromWindow(handle, MONITOR_DEFAULTTONEAREST);
+            if GetWindowRect(self.hwnd(), &mut window_rect).is_ok() {
+                let monitor = MonitorFromWindow(self.hwnd(), MONITOR_DEFAULTTONEAREST);
                 let mut monitor_info = MONITORINFO {
                     cbSize: size_of::<MONITORINFO>() as u32,
                     ..Default::default()
@@ -311,8 +310,7 @@ impl WindowsWindow {
     pub fn focus(&self) {
         if !self.is_focused() {
             unsafe {
-                debug!("[{}] :: Focus", self.title());
-                // TODO: keybd_event(0, 0, KEYBD_EVENT_FLAGS(0), 0);
+                trace!("[{}] :: Focus", self.title());
                 SetForegroundWindow(self.hwnd());
             }
         }

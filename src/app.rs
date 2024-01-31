@@ -1,11 +1,13 @@
-use crate::action::Action;
-use crate::keys::{Keys, VirtualKey};
+use crate::classes::action::Action;
+use crate::classes::key_bindings::default_key_bindings;
+use crate::classes::keys::{Keys, VirtualKey};
+use crate::classes::native_monitor_container::NativeMonitorContainer;
 use crate::layout_engines::LayoutEngineType;
-use crate::native_monitor_container::NativeMonitorContainer;
 use crate::windows_manager::WindowsManager;
 use eframe::egui;
 use eframe::emath::Align;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use windows::Win32::Foundation::POINT;
 use windows::Win32::UI::WindowsAndMessaging::GetCursorPos;
 
@@ -13,7 +15,7 @@ use windows::Win32::UI::WindowsAndMessaging::GetCursorPos;
 #[serde(default)]
 pub struct App {
     pub settings: Settings,
-    pub key_bindings: Vec<(Action, Keys)>,
+    pub key_bindings: HashMap<Action, Keys>,
 
     #[serde(skip)]
     pub windows_manager: WindowsManager,
@@ -27,33 +29,12 @@ pub struct App {
 
 impl Default for App {
     fn default() -> Self {
-        let key_bindings = Vec::from([
-            (
-                Action::Start,
-                Keys {
-                    shift: true,
-                    ctrl: true,
-                    key: VirtualKey::A,
-                    ..Default::default()
-                },
-            ),
-            (
-                Action::Stop,
-                Keys {
-                    shift: true,
-                    ctrl: true,
-                    key: VirtualKey::S,
-                    ..Default::default()
-                },
-            ),
-        ]);
-
         Self {
-            settings: Default::default(),
-            key_bindings,
-            windows_manager: Default::default(),
-            monitor_container: Default::default(),
-            window_state: Default::default(),
+            settings: Settings::default(),
+            key_bindings: default_key_bindings(),
+            windows_manager: WindowsManager::default(),
+            monitor_container: NativeMonitorContainer::default(),
+            window_state: WindowState::default(),
         }
     }
 }
@@ -85,6 +66,7 @@ impl eframe::App for App {
         self.windows_manager.handle_window();
         self.windows_manager.handle_keys(&self.key_bindings);
         self.windows_manager.handle_mouse();
+        // self.windows_manager.test_layout(self.settings.layout_engine_type);
 
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
@@ -146,7 +128,7 @@ impl eframe::App for App {
                     .show(ui, |ui| {
                         self.key_bindings.iter_mut().for_each(|(action, keys)| {
                             ui.separator();
-                            ui.heading(format!("{:?}", action));
+                            ui.heading(action.to_string());
 
                             egui::ComboBox::new(format!("bindings_{:?}", action), "Key")
                                 .selected_text(format!("{:?}", keys.key))

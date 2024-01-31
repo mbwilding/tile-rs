@@ -1,6 +1,6 @@
+use crate::classes::window_location::WindowLocation;
+use crate::classes::window_state::WindowState;
 use crate::layout_engines::LayoutEngine;
-use crate::window_location::WindowLocation;
-use crate::window_state::WindowState;
 use crate::windows_window::WindowsWindow;
 
 pub enum Orientation {

@@ -1,4 +1,4 @@
-use crate::window_location::WindowLocation;
+use crate::classes::window_location::WindowLocation;
 use crate::windows_window::WindowsWindow;
 use serde::{Deserialize, Serialize};
 

@@ -1,9 +1,10 @@
-use crate::action::Action;
-use crate::keys::Keys;
-use crate::layout_engines::LayoutEngineType;
-use crate::windows_defer_pos_handle::WindowsDeferPosHandle;
+use crate::classes::action::Action;
+use crate::classes::keys::Keys;
+use crate::helpers::win32_helpers::is_app_window;
+use crate::helpers::windows_defer_pos_handle::WindowsDeferPosHandle;
+use crate::layout_engines;
+use crate::layout_engines::{LayoutEngine, LayoutEngineType};
 use crate::windows_window::WindowsWindow;
-use anyhow::Result;
 use crossbeam_channel::{Receiver, Sender};
 use lazy_static::lazy_static;
 use log::{debug, error, info, trace};
@@ -46,6 +47,55 @@ pub struct WindowsManager {
 }
 
 impl WindowsManager {
+    #[allow(dead_code)]
+    pub fn test_layout(&mut self, layout_engine_type: LayoutEngineType) {
+        // TODO: Check if enabled
+
+        // TODO: Don't construct every time
+        let mut layout: Box<dyn LayoutEngine> = match layout_engine_type {
+            LayoutEngineType::Dwindle => {
+                Box::new(layout_engines::dwindle_layout_engine::DwindleLayoutEngine::new())
+            }
+            LayoutEngineType::Focus => {
+                Box::new(layout_engines::focus_layout_engine::FocusLayoutEngine::new())
+            }
+            LayoutEngineType::Full => {
+                Box::new(layout_engines::full_layout_engine::FullLayoutEngine::new())
+            }
+            LayoutEngineType::Grid => {
+                Box::new(layout_engines::grid_layout_engine::GridLayoutEngine::new())
+            }
+        };
+
+        self.windows
+            .iter_mut()
+            .for_each(|(_, window)| window.show_in_current_state());
+
+        let window_data: Vec<_> = self
+            .windows
+            .iter()
+            .map(|(&id, window)| (id, window.clone()))
+            .collect();
+
+        let calc = layout.calc_layout(
+            &window_data.iter().map(|(_, w)| w).collect::<Vec<_>>(),
+            3840,
+            2160,
+        );
+
+        debug!("calc: {:?}", calc);
+
+        let mut handle = self.defer_windows_pos(calc.len() as i32);
+
+        for (i, loc) in calc.iter().enumerate() {
+            let (_, window) = &window_data[i];
+
+            if !window.is_mouse_moving && !window.is_fullscreen() {
+                handle.defer_window_pos(window, loc);
+            }
+        }
+    }
+
     pub fn init(&mut self, layout_engine_type: LayoutEngineType) {
         self.change_layout(layout_engine_type);
 
@@ -116,7 +166,7 @@ impl WindowsManager {
         };
 
         for hwnd in windows.into_iter() {
-            if crate::win32_helpers::is_app_window(hwnd) {
+            if is_app_window(hwnd) {
                 self.register_window(hwnd.0);
             }
         }
@@ -178,17 +228,15 @@ impl WindowsManager {
         }
     }
 
-    pub fn handle_keys(&mut self, mappings: &Vec<(Action, Keys)>) {
+    pub fn handle_keys(&mut self, key_bindings: &HashMap<Action, Keys>) {
         if let Ok(keys) = KEYS.1.try_recv() {
-            for (action, key) in mappings {
-                if *key == keys {
-                    match action {
-                        Action::Start => {
-                            info!("action: Start");
-                        }
-                        Action::Stop => {
-                            info!("action: Stop");
-                        }
+            let matching = key_bindings.iter().find(|(_, key)| *key == &keys);
+
+            if let Some((action, _)) = matching {
+                match action {
+                    Action::ToggleFocusedWindowTiling => {
+                        info!("action: ToggleFocusedWindowTiling");
+                        self.toggle_focused_window_tiling();
                     }
                 }
             }
@@ -207,10 +255,10 @@ impl WindowsManager {
     }
 
     #[allow(dead_code)]
-    fn defer_windows_pos(&mut self, count: i32) -> Result<WindowsDeferPosHandle> {
-        let info = unsafe { BeginDeferWindowPos(count)? };
+    fn defer_windows_pos(&mut self, count: i32) -> WindowsDeferPosHandle {
+        let info = unsafe { BeginDeferWindowPos(count).unwrap() }; // TODO: Unwrap
 
-        Ok(WindowsDeferPosHandle::new(info))
+        WindowsDeferPosHandle::new(info)
     }
 
     #[allow(dead_code)]

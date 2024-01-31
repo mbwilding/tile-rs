@@ -1,4 +1,4 @@
-use crate::window_state::WindowState;
+use crate::classes::window_state::WindowState;
 use std::fmt::Display;
 
 #[derive(Debug)]
