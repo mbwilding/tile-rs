@@ -1,5 +1,5 @@
 use crate::classes::window_location::WindowLocation;
-use crate::windows_window::WindowsWindow;
+use crate::window::Window;
 use serde::{Deserialize, Serialize};
 
 pub mod dwindle_layout_engine;
@@ -40,7 +40,7 @@ pub trait LayoutEngine {
     // calculate the desired layout of the workspace
     fn calc_layout(
         &mut self,
-        windows: &[&WindowsWindow],
+        windows: &[&Window],
         space_width: i32,
         space_height: i32,
     ) -> Vec<WindowLocation>;

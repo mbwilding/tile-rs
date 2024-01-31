@@ -1,7 +1,7 @@
 use crate::classes::window_location::WindowLocation;
 use crate::classes::window_state::WindowState;
 use crate::layout_engines::LayoutEngine;
-use crate::windows_window::WindowsWindow;
+use crate::window::Window;
 
 pub enum Orientation {
     Horizontal,
@@ -42,7 +42,7 @@ impl LayoutEngine for DwindleLayoutEngine {
 
     fn calc_layout(
         &mut self,
-        windows: &[&WindowsWindow],
+        windows: &[&Window],
         space_width: i32,
         space_height: i32,
     ) -> Vec<WindowLocation> {

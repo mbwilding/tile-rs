@@ -6,8 +6,8 @@ mod classes;
 mod csharp;
 mod helpers;
 mod layout_engines;
-mod windows_manager;
-mod windows_window;
+mod manager;
+mod window;
 mod workspace;
 
 use crate::helpers::single;

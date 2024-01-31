@@ -43,7 +43,7 @@ const IGNORE_PROGRAMS: [&str; 3] = [
 const IGNORE_WINDOW_TITLES: [&str; 1] = ["Windows Input Experience"];
 
 #[derive(Debug, Eq, Hash, PartialEq, Clone)]
-pub struct WindowsWindow {
+pub struct Window {
     // Private
     handle: isize,
     process_id: u32,
@@ -55,7 +55,7 @@ pub struct WindowsWindow {
     pub is_mouse_moving: bool,
 }
 
-impl WindowsWindow {
+impl Window {
     pub fn new(handle: isize) -> Result<Self> {
         let hwnd = HWND(handle);
 
@@ -395,7 +395,7 @@ impl WindowsWindow {
     }
 }
 
-impl Display for WindowsWindow {
+impl Display for Window {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,

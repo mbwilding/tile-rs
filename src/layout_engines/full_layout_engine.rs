@@ -1,7 +1,7 @@
 use crate::classes::window_location::WindowLocation;
 use crate::classes::window_state::WindowState;
 use crate::layout_engines::LayoutEngine;
-use crate::windows_window::WindowsWindow;
+use crate::window::Window;
 
 pub struct FullLayoutEngine {
     last_full: Option<isize>,
@@ -17,7 +17,7 @@ impl FullLayoutEngine {
         }
     }
 
-    fn get_desired_state(&self, window: &WindowsWindow, force_normal: bool) -> WindowState {
+    fn get_desired_state(&self, window: &Window, force_normal: bool) -> WindowState {
         if window.is_focused() || force_normal {
             WindowState::Normal
         } else {
@@ -33,7 +33,7 @@ impl LayoutEngine for FullLayoutEngine {
 
     fn calc_layout(
         &mut self,
-        windows: &[&WindowsWindow],
+        windows: &[&Window],
         space_width: i32,
         space_height: i32,
     ) -> Vec<WindowLocation> {

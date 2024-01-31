@@ -1,7 +1,7 @@
 use crate::classes::window_location::WindowLocation;
 use crate::classes::window_state::WindowState;
 use crate::layout_engines::LayoutEngine;
-use crate::windows_window::WindowsWindow;
+use crate::window::Window;
 
 pub struct FocusLayoutEngine {
     num_in_primary: i32,
@@ -49,7 +49,7 @@ impl LayoutEngine for FocusLayoutEngine {
 
     fn calc_layout(
         &mut self,
-        windows: &[&WindowsWindow],
+        windows: &[&Window],
         space_width: i32,
         space_height: i32,
     ) -> Vec<WindowLocation> {

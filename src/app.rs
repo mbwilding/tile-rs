@@ -3,7 +3,7 @@ use crate::classes::key_bindings::default_key_bindings;
 use crate::classes::keys::{Keys, VirtualKey};
 use crate::classes::native_monitor_container::NativeMonitorContainer;
 use crate::layout_engines::LayoutEngineType;
-use crate::windows_manager::WindowsManager;
+use crate::manager::Manager;
 use eframe::egui;
 use eframe::emath::Align;
 use serde::{Deserialize, Serialize};
@@ -18,7 +18,7 @@ pub struct App {
     pub key_bindings: HashMap<Action, Keys>,
 
     #[serde(skip)]
-    pub windows_manager: WindowsManager,
+    pub windows_manager: Manager,
 
     #[serde(skip)]
     monitor_container: NativeMonitorContainer,
@@ -32,7 +32,7 @@ impl Default for App {
         Self {
             settings: Settings::default(),
             key_bindings: default_key_bindings(),
-            windows_manager: WindowsManager::default(),
+            windows_manager: Manager::default(),
             monitor_container: NativeMonitorContainer::default(),
             window_state: WindowState::default(),
         }

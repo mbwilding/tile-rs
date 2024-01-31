@@ -4,7 +4,7 @@ use crate::helpers::win32_helpers::is_app_window;
 use crate::helpers::windows_defer_pos_handle::WindowsDeferPosHandle;
 use crate::layout_engines;
 use crate::layout_engines::{LayoutEngine, LayoutEngineType};
-use crate::windows_window::WindowsWindow;
+use crate::window::Window;
 use crossbeam_channel::{Receiver, Sender};
 use lazy_static::lazy_static;
 use log::{debug, error, info, trace};
@@ -37,8 +37,8 @@ lazy_static! {
 }
 
 #[derive(Debug, Default)]
-pub struct WindowsManager {
-    pub windows: BTreeMap<isize, WindowsWindow>,
+pub struct Manager {
+    pub windows: BTreeMap<isize, Window>,
     pub floating: HashMap<isize, bool>,
 
     mouse_move_lock: Mutex<()>,
@@ -46,7 +46,7 @@ pub struct WindowsManager {
     layout_engine_type: LayoutEngineType,
 }
 
-impl WindowsManager {
+impl Manager {
     #[allow(dead_code)]
     pub fn test_layout(&mut self, layout_engine_type: LayoutEngineType) {
         // TODO: Check if enabled
@@ -310,7 +310,7 @@ impl WindowsManager {
 
         trace!("register_window | handle: 0x{:X} not registered", &hwnd);
 
-        match WindowsWindow::new(hwnd) {
+        match Window::new(hwnd) {
             Ok(window) => {
                 debug!("register_window | handle: 0x{:X} registered", &hwnd);
                 self.windows.insert(hwnd, window)
