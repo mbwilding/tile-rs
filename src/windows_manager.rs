@@ -222,19 +222,20 @@ impl WindowsManager {
             .map(|window| window.handle());
 
         if let Some(hwnd) = hwnd_option {
-            if self.floating.contains_key(&hwnd) {
-                self.floating.remove(&hwnd);
-                self.handle_window_add(hwnd, false);
-            } else {
-                if let Some(floating) = self.floating.get_mut(&hwnd) {
-                    *floating = true;
-                }
-
+            if let std::collections::hash_map::Entry::Vacant(e) = self.floating.entry(hwnd) {
+                e.insert(true);
                 self.handle_window_remove(hwnd);
 
-                if let Some(window) = self.windows.values().find(|w| w.handle() == hwnd) {
+                if let Some(window) = self.windows.get_mut(&hwnd) {
                     window.bring_to_top();
                 }
+            } else {
+                self.floating.remove(&hwnd);
+                self.handle_window_add(hwnd, false);
+            }
+
+            if let Some(window) = self.windows.get_mut(&hwnd) {
+                window.focus();
             }
         }
     }
