@@ -2,12 +2,14 @@ use crate::classes::action::Action;
 use crate::classes::key_bindings::default_key_bindings;
 use crate::classes::keys::{Keys, VirtualKey};
 use crate::classes::native_monitor_container::NativeMonitorContainer;
+use crate::classes::window_order::WindowOrder;
 use crate::layout_engines::LayoutEngineType;
 use crate::manager::Manager;
 use eframe::egui;
 use eframe::emath::Align;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 use windows::Win32::Foundation::POINT;
 use windows::Win32::UI::WindowsAndMessaging::GetCursorPos;
 
@@ -18,7 +20,7 @@ pub struct App {
     pub key_bindings: HashMap<Action, Keys>,
 
     #[serde(skip)]
-    pub windows_manager: Manager,
+    pub windows_manager: Arc<Mutex<Manager>>,
 
     #[serde(skip)]
     monitor_container: NativeMonitorContainer,
@@ -32,7 +34,7 @@ impl Default for App {
         Self {
             settings: Settings::default(),
             key_bindings: default_key_bindings(),
-            windows_manager: Manager::default(),
+            windows_manager: Arc::new(Mutex::new(Manager::default())),
             monitor_container: NativeMonitorContainer::default(),
             window_state: WindowState::default(),
         }
@@ -41,7 +43,8 @@ impl Default for App {
 
 #[derive(Debug, Default, Deserialize, Serialize)]
 pub struct Settings {
-    pub layout_engine_type: LayoutEngineType,
+    pub layout_engine_type: LayoutEngineType, // TODO Should be in workspace
+    pub new_window_order: WindowOrder,
 }
 
 #[derive(Default)]
@@ -63,10 +66,10 @@ impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         ctx.request_repaint(); // Temp fix to keep loop going
 
-        self.windows_manager.handle_window();
-        self.windows_manager.handle_keys(&self.key_bindings);
-        self.windows_manager.handle_mouse();
-        // self.windows_manager.test_layout(self.settings.layout_engine_type);
+        let mut windows_manager = self.windows_manager.lock().unwrap();
+        windows_manager.handle_window();
+        windows_manager.handle_keys(&self.key_bindings);
+        windows_manager.handle_mouse();
 
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
@@ -116,8 +119,7 @@ impl eframe::App for App {
                                     });
 
                                 if response.response.changed() {
-                                    self.windows_manager
-                                        .change_layout(self.settings.layout_engine_type);
+                                    windows_manager.change_layout(self.settings.layout_engine_type);
                                 }
                             });
                         });
@@ -155,12 +157,12 @@ impl eframe::App for App {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.horizontal(|ui| {
                 ui.heading("Windows");
-                ui.label(self.windows_manager.windows.len().to_string());
+                ui.label(windows_manager.windows.len().to_string());
             });
 
             ui.horizontal(|ui| {
                 ui.heading("Floating");
-                ui.label(self.windows_manager.floating.len().to_string());
+                ui.label(windows_manager.floating.len().to_string());
             });
 
             ui.separator();
@@ -171,15 +173,10 @@ impl eframe::App for App {
                     egui::containers::collapsing_header::CollapsingHeader::new("Windows")
                         .default_open(true)
                         .show(ui, |ui| {
-                            self.windows_manager
-                                .windows
-                                .iter_mut()
-                                .for_each(|(_, window)| {
-                                    let title = window.title();
+                            windows_manager.windows.iter_mut().for_each(|(_, window)| {
+                                let title = window.title();
 
-                                    egui::containers::collapsing_header::CollapsingHeader::new(
-                                        &title,
-                                    )
+                                egui::containers::collapsing_header::CollapsingHeader::new(&title)
                                     .id_source(format!("window_{}", &title))
                                     .default_open(false)
                                     .show(ui, |ui| {
@@ -236,14 +233,13 @@ impl eframe::App for App {
                                             ui.label(window.process_file_name());
                                         });
                                     });
-                                });
+                            });
                         });
                 });
         });
 
         egui::TopBottomPanel::bottom("bottom_panel").show(ctx, |ui| {
-            let moving_window = self
-                .windows_manager
+            let moving_window = windows_manager
                 .windows
                 .values()
                 .find(|window| window.is_mouse_moving);

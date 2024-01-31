@@ -36,8 +36,11 @@ fn main() -> eframe::Result<()> {
         APP_NAME,
         native_options,
         Box::new(move |cc| {
-            let mut app = app::App::new(cc);
-            app.windows_manager.init(app.settings.layout_engine_type);
+            let app = app::App::new(cc);
+            app.windows_manager
+                .lock()
+                .unwrap()
+                .init(app.settings.layout_engine_type);
             Box::new(app)
         }),
     )
