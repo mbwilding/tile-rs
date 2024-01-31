@@ -45,13 +45,13 @@ const IGNORE_WINDOW_TITLES: [&str; 1] = ["Windows Input Experience"];
 #[derive(Debug, Eq, Hash, PartialEq, Clone)]
 pub struct Window {
     // Private
-    handle: isize,
     process_id: u32,
     process_name: String,
     process_file_name: String,
     did_manual_hide: bool,
 
     // Public
+    pub handle: isize,
     pub is_mouse_moving: bool,
 }
 
@@ -161,10 +161,6 @@ impl Window {
         let _ = unsafe { GetWindowTextW(hwnd, bytes.as_mut_slice()) };
 
         String::from_utf16_lossy(&bytes[..length as usize])
-    }
-
-    pub fn handle(&self) -> isize {
-        self.handle
     }
 
     pub fn hwnd(&self) -> HWND {

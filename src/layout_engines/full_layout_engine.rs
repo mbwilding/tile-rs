@@ -48,10 +48,10 @@ impl LayoutEngine for FullLayoutEngine {
 
         for window in windows.iter() {
             let force_normal =
-                no_focus && Some(window.handle()) == self.last_full || window.is_focused();
+                no_focus && Some(window.handle) == self.last_full || window.is_focused();
 
             if force_normal {
-                self.last_full = Some(window.handle());
+                self.last_full = Some(window.handle);
             }
 
             list.push(WindowLocation::new(

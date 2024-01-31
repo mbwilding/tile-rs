@@ -267,7 +267,7 @@ impl Manager {
             .windows
             .values()
             .find(|w| w.is_focused())
-            .map(|window| window.handle());
+            .map(|window| window.handle);
 
         if let Some(hwnd) = hwnd_option {
             if let std::collections::hash_map::Entry::Vacant(e) = self.floating.entry(hwnd) {
