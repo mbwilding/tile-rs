@@ -207,7 +207,7 @@ impl WindowsManager {
     }
 
     #[allow(dead_code)]
-    fn defer_windows_pos(count: i32) -> Result<WindowsDeferPosHandle> {
+    fn defer_windows_pos(&mut self, count: i32) -> Result<WindowsDeferPosHandle> {
         let info = unsafe { BeginDeferWindowPos(count)? };
 
         Ok(WindowsDeferPosHandle::new(info))
