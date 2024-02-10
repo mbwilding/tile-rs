@@ -54,13 +54,8 @@ where
     where
         T: Clone + Send + Sync + 'static,
     {
-        match self.subscribers.values().len() {
-            0 => (),
-            _ => {
-                for subscriber in self.subscribers.values() {
-                    subscriber(payload.clone());
-                }
-            }
+        for subscriber in self.subscribers.values() {
+            subscriber(payload.clone());
         }
     }
 }
