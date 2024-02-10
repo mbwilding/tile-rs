@@ -4,7 +4,7 @@ pub struct Event<T>
 where
     T: Clone,
 {
-    subscribers: HashMap<usize, Box<dyn Fn(T) + Send>>,
+    subscribers: HashMap<usize, Box<dyn Fn(T) + Send + Sync>>,
     next_id: usize,
 }
 
