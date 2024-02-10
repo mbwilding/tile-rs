@@ -63,7 +63,7 @@ impl App {
 
 impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        ctx.request_repaint(); // Temp fix to keep loop going
+        ctx.request_repaint(); // TODO: Temp fix to keep loop going
 
         self.windows_manager.handle_window();
         self.windows_manager.handle_keys(&self.key_bindings);

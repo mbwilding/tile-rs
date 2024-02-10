@@ -1,61 +1,24 @@
-use std::collections::HashMap;
+use crossbeam_channel::{unbounded, Receiver, Sender};
 
-pub struct Event<T>
-where
-    T: Clone,
-{
-    subscribers: HashMap<usize, Box<dyn Fn(T) + Send + Sync>>,
-    next_id: usize,
+pub struct Event<T> {
+    senders: Vec<Sender<T>>,
 }
 
-impl<T> Event<T>
-where
-    T: Clone,
-{
+impl<T: Clone> Event<T> {
     pub fn new() -> Self {
         Event {
-            subscribers: HashMap::new(),
-            next_id: 0,
+            senders: Vec::new(),
         }
     }
-}
 
-impl<T> Default for Event<T>
-where
-    T: Clone,
-{
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl<T> Event<T>
-where
-    T: Clone,
-{
-    pub fn subscribe<F>(&mut self, callback: F) -> usize
-    where
-        F: Fn(T) + Send + Sync + 'static,
-    {
-        let next_id = &mut self.next_id;
-
-        let id = *next_id;
-        self.subscribers.insert(id, Box::new(callback));
-        *next_id += 1;
-
-        id
+    pub fn subscribe(&mut self) -> Receiver<T> {
+        let (sender, receiver) = unbounded();
+        self.senders.push(sender);
+        receiver
     }
 
-    pub fn unsubscribe(&mut self, id: usize) {
-        self.subscribers.remove(&id);
-    }
-
-    pub fn emit(&self, payload: &T)
-    where
-        T: Clone + Send + Sync + 'static,
-    {
-        for subscriber in self.subscribers.values() {
-            subscriber(payload.clone());
-        }
+    pub fn broadcast(&mut self, message: T) {
+        self.senders
+            .retain(|sender| sender.send(message.clone()).is_ok());
     }
 }

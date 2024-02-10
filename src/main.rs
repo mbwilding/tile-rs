@@ -15,6 +15,7 @@ mod workspace_container;
 use crate::helpers::single;
 use eframe::egui;
 use log::info;
+use std::thread;
 
 pub const APP_NAME: &str = "Tile-RS";
 
@@ -40,6 +41,16 @@ fn main() -> eframe::Result<()> {
         Box::new(move |cc| {
             let mut app = app::App::new(cc);
             app.windows_manager.init(app.settings.layout_engine_type);
+
+            // TODO: Remove this
+            let test = app.windows_manager.window_updated.subscribe();
+            thread::spawn(move || {
+                for message in test.iter() {
+                    println!("Received message: {:?}", message);
+                }
+            });
+            // TODO: Remove this
+
             Box::new(app)
         }),
     )
