@@ -1,5 +1,6 @@
 use crate::classes::action::Action;
 use crate::classes::keys::Keys;
+use crate::event::Event;
 use crate::helpers::win32_helpers::is_app_window;
 use crate::helpers::windows_defer_pos_handle::WindowsDeferPosHandle;
 use crate::layout_engines;
@@ -9,7 +10,7 @@ use crossbeam_channel::{Receiver, Sender};
 use lazy_static::lazy_static;
 use log::{debug, error, info, trace};
 use std::collections::{BTreeMap, HashMap};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use windows::Win32::Foundation::{BOOL, HMODULE, HWND, LPARAM, LRESULT, TRUE, WPARAM};
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::UI::Accessibility::{SetWinEventHook, UnhookWinEvent, HWINEVENTHOOK};
@@ -36,7 +37,7 @@ lazy_static! {
     static ref MOUSE: (Sender<()>, Receiver<()>) = crossbeam_channel::unbounded();
 }
 
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub struct Manager {
     pub windows: BTreeMap<isize, Window>,
     pub floating: HashMap<isize, bool>,
@@ -44,6 +45,12 @@ pub struct Manager {
     mouse_move_lock: Mutex<()>,
     mouse_move_window: Option<isize>,
     layout_engine_type: LayoutEngineType,
+
+    pub window_created: Arc<Mutex<Event<(Window, bool)>>>,
+    pub window_destroyed: Arc<Mutex<Event<Window>>>,
+    pub window_updated: Arc<Mutex<Event<(Window, WindowUpdateType)>>>,
+    pub window_focused: Arc<Mutex<Event<Window>>>,
+    pub external_window_update: Arc<Mutex<Event<Window>>>,
 }
 
 impl Manager {
@@ -328,13 +335,17 @@ impl Manager {
         trace!("unregister_window | handle: 0x{:X} registered", &hwnd);
 
         self.windows.remove(&hwnd);
-        // TODO: HandleWindowRemove(window);
+        self.handle_window_remove(hwnd);
     }
 
     fn update_window(&mut self, hwnd: isize, update_type: WindowUpdateType) {
         if update_type == WindowUpdateType::Show && self.windows.contains_key(&hwnd) {
-            if let Some(_window) = self.windows.get(&hwnd) {};
-            // TODO: WindowUpdated?.Invoke(window, update_type);
+            if let Some(window) = self.windows.get(&hwnd) {
+                self.window_updated
+                    .lock()
+                    .unwrap()
+                    .emit(&(window.clone(), update_type));
+            };
         } else if update_type == WindowUpdateType::Show {
             self.register_window(hwnd);
         } else if update_type == WindowUpdateType::Hide && self.windows.contains_key(&hwnd) {
@@ -342,19 +353,28 @@ impl Manager {
                 if !window.did_manual_hide() {
                     self.unregister_window(hwnd);
                 } else {
-                    // TODO: WindowUpdated?.Invoke(window, update_type);
+                    self.window_updated
+                        .lock()
+                        .unwrap()
+                        .emit(&(window.clone(), update_type));
                 }
             };
         } else if self.windows.contains_key(&hwnd) {
             if let Some(_window) = self.windows.get(&hwnd) {};
-            // TODO: WindowUpdated?.Invoke(window, update_type);
+            self.window_updated
+                .lock()
+                .unwrap()
+                .emit(&(self.windows[&hwnd].clone(), update_type));
         }
     }
 
     fn start_move_window(&mut self, hwnd: isize) {
         if self.windows.contains_key(&hwnd) {
             self.handle_window_move_start(hwnd);
-            // TODO: WindowUpdated?.Invoke(window, WindowUpdateType.MoveStart);
+            self.window_updated
+                .lock()
+                .unwrap()
+                .emit(&(self.windows[&hwnd].clone(), WindowUpdateType::MoveStart));
             debug!("start_move_window | handle: 0x{:X}", &hwnd);
         }
     }
@@ -362,7 +382,10 @@ impl Manager {
     fn end_move_window(&mut self, hwnd: isize) {
         if self.windows.contains_key(&hwnd) {
             self.handle_window_move_end();
-            // TODO: WindowUpdated?.Invoke(window, WindowUpdateType.MoveEnd);
+            self.window_updated
+                .lock()
+                .unwrap()
+                .emit(&(self.windows[&hwnd].clone(), WindowUpdateType::MoveEnd));
             debug!("end_move_window | handle: 0x{:X}", &hwnd);
         }
     }
@@ -370,7 +393,10 @@ impl Manager {
     fn window_move(&self, hwnd: isize) {
         if let Some(window) = self.windows.get(&hwnd) {
             if window.can_layout() {
-                // TODO: WindowUpdated?.Invoke(_windows[handle], WindowUpdateType.Move);
+                self.window_updated
+                    .lock()
+                    .unwrap()
+                    .emit(&(window.clone(), WindowUpdateType::Move));
             }
         }
     }
@@ -399,12 +425,18 @@ impl Manager {
         }
     }
 
-    fn handle_window_add(&mut self, _handle: isize, _first_create: bool) {
-        // TODO: WindowCreated?.Invoke(window, firstCreate);
+    fn handle_window_add(&mut self, handle: isize, first_create: bool) {
+        self.window_created
+            .lock()
+            .unwrap()
+            .emit(&(self.windows[&handle].clone(), first_create));
     }
 
-    fn handle_window_remove(&mut self, _handle: isize) {
-        // TODO: WindowDestroyed?.Invoke(window);
+    fn handle_window_remove(&mut self, handle: isize) {
+        self.window_destroyed
+            .lock()
+            .unwrap()
+            .emit(&self.windows[&handle]);
     }
 
     unsafe extern "system" fn enum_windows_callback(hwnd: HWND, userdata: LPARAM) -> BOOL {
@@ -464,7 +496,7 @@ impl Manager {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum WindowUpdateType {
     Show,
     Hide,

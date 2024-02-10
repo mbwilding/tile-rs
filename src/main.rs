@@ -4,11 +4,13 @@
 mod app;
 mod classes;
 mod csharp;
+mod event;
 mod helpers;
 mod layout_engines;
 mod manager;
 mod window;
 mod workspace;
+mod workspace_container;
 
 use crate::helpers::single;
 use eframe::egui;
@@ -36,11 +38,8 @@ fn main() -> eframe::Result<()> {
         APP_NAME,
         native_options,
         Box::new(move |cc| {
-            let app = app::App::new(cc);
-            app.windows_manager
-                .lock()
-                .unwrap()
-                .init(app.settings.layout_engine_type);
+            let mut app = app::App::new(cc);
+            app.windows_manager.init(app.settings.layout_engine_type);
             Box::new(app)
         }),
     )

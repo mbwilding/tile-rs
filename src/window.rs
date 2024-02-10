@@ -22,7 +22,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
     SW_SHOWNOACTIVATE, WM_SYSCOMMAND,
 };
 
-const IGNORE_WINDOW_CLASSES: [&str; 9] = [
+const IGNORE_WINDOW_CLASSES: [&str; 10] = [
     "TaskManagerWindow",
     "MSCTFIME UI",
     "SHELLDLL_DefView",
@@ -32,6 +32,7 @@ const IGNORE_WINDOW_CLASSES: [&str; 9] = [
     "WorkerW",
     "Shell_SecondaryTrayWnd",
     "Windows.UI.Composition.DesktopWindowContentBridge",
+    "IME",
 ];
 
 const IGNORE_PROGRAMS: [&str; 3] = [

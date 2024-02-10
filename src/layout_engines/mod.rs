@@ -9,7 +9,6 @@ pub mod full_layout_engine;
 pub mod grid_layout_engine;
 pub mod panel_layout_engine;
 pub mod tall_layout_engine;
-mod workspace_container;
 
 #[derive(Debug, Default, Copy, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub enum LayoutEngineType {
