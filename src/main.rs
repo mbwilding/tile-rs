@@ -3,19 +3,22 @@
 
 mod app;
 mod classes;
+mod context;
 mod csharp;
-mod event;
+mod delegates;
 mod helpers;
 mod layout_engines;
-mod manager;
 mod window;
+mod windows_manager;
 mod workspace;
 mod workspace_container;
+mod workspace_manager;
 
+use crate::app::App;
+use crate::context::context;
 use crate::helpers::single;
 use eframe::egui;
 use log::info;
-use std::thread;
 
 pub const APP_NAME: &str = "Tile-RS";
 
@@ -39,18 +42,8 @@ fn main() -> eframe::Result<()> {
         APP_NAME,
         native_options,
         Box::new(move |cc| {
-            let mut app = app::App::new(cc);
-            app.windows_manager.init(app.settings.layout_engine_type);
-
-            // TODO: Remove this
-            let test = app.windows_manager.window_updated.subscribe();
-            thread::spawn(move || {
-                for message in test.iter() {
-                    println!("Received message: {:?}", message);
-                }
-            });
-            // TODO: Remove this
-
+            let mut app = App::new(cc);
+            context(&mut app);
             Box::new(app)
         }),
     )

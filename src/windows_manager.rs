@@ -1,6 +1,7 @@
 use crate::classes::action::Action;
 use crate::classes::keys::Keys;
-use crate::event::Event;
+use crate::delegates::{WindowCreateDelegate, WindowDelegate, WindowUpdateDelegate};
+use crate::helpers::event::Event;
 use crate::helpers::win32_helpers::is_app_window;
 use crate::helpers::windows_defer_pos_handle::WindowsDeferPosHandle;
 use crate::layout_engines;
@@ -10,7 +11,7 @@ use crossbeam_channel::{Receiver, Sender};
 use lazy_static::lazy_static;
 use log::{debug, error, info, trace};
 use std::collections::{BTreeMap, HashMap};
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 use windows::Win32::Foundation::{BOOL, HMODULE, HWND, LPARAM, LRESULT, TRUE, WPARAM};
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::UI::Accessibility::{SetWinEventHook, UnhookWinEvent, HWINEVENTHOOK};
@@ -37,7 +38,7 @@ lazy_static! {
     static ref MOUSE: (Sender<()>, Receiver<()>) = crossbeam_channel::unbounded();
 }
 
-pub struct Manager {
+pub struct WindowsManager {
     pub windows: BTreeMap<isize, Window>,
     pub floating: HashMap<isize, bool>,
 
@@ -45,16 +46,17 @@ pub struct Manager {
     mouse_move_window: Option<isize>,
     layout_engine_type: LayoutEngineType,
 
-    pub window_created: Event<(Window, bool)>,
-    pub window_destroyed: Event<Window>,
-    pub window_updated: Event<(Window, WindowUpdateType)>,
-    pub window_focused: Event<Window>,
-    pub external_window_update: Event<Window>,
+    pub event_window_created: Event<WindowCreateDelegate>,
+    pub event_window_destroyed: Event<WindowDelegate>,
+    pub event_window_updated: Event<WindowUpdateDelegate>,
+    pub event_window_focused: Event<WindowDelegate>,
+    pub event_external_window_update: Event<WindowDelegate>,
+    pub event_external_window_closed: Event<WindowDelegate>,
 }
 
-impl Default for Manager {
+impl Default for WindowsManager {
     fn default() -> Self {
-        Manager {
+        WindowsManager {
             windows: BTreeMap::new(),
             floating: HashMap::new(),
 
@@ -62,16 +64,17 @@ impl Default for Manager {
             mouse_move_window: None,
             layout_engine_type: LayoutEngineType::Dwindle,
 
-            window_created: Event::<(Window, bool)>::new(),
-            window_destroyed: Event::<Window>::new(),
-            window_updated: Event::<(Window, WindowUpdateType)>::new(),
-            window_focused: Event::<Window>::new(),
-            external_window_update: Event::<Window>::new(),
+            event_window_created: Event::<WindowCreateDelegate>::new(),
+            event_window_destroyed: Event::<WindowDelegate>::new(),
+            event_window_updated: Event::<WindowUpdateDelegate>::new(),
+            event_window_focused: Event::<WindowDelegate>::new(),
+            event_external_window_update: Event::<WindowDelegate>::new(),
+            event_external_window_closed: Event::<WindowDelegate>::new(),
         }
     }
 }
 
-impl Manager {
+impl WindowsManager {
     #[allow(dead_code)]
     pub fn test_layout(&mut self, layout_engine_type: LayoutEngineType) {
         // TODO: Check if enabled
@@ -359,7 +362,8 @@ impl Manager {
     fn update_window(&mut self, hwnd: isize, update_type: WindowUpdateType) {
         if update_type == WindowUpdateType::Show && self.windows.contains_key(&hwnd) {
             if let Some(window) = self.windows.get(&hwnd) {
-                self.window_updated.broadcast((window.clone(), update_type));
+                self.event_window_updated
+                    .broadcast((window.clone(), update_type));
             };
         } else if update_type == WindowUpdateType::Show {
             self.register_window(hwnd);
@@ -368,12 +372,13 @@ impl Manager {
                 if !window.did_manual_hide() {
                     self.unregister_window(hwnd);
                 } else {
-                    self.window_updated.broadcast((window.clone(), update_type));
+                    self.event_window_updated
+                        .broadcast((window.clone(), update_type));
                 }
             };
         } else if self.windows.contains_key(&hwnd) {
             if let Some(_window) = self.windows.get(&hwnd) {};
-            self.window_updated
+            self.event_window_updated
                 .broadcast((self.windows[&hwnd].clone(), update_type));
         }
     }
@@ -381,7 +386,7 @@ impl Manager {
     fn start_move_window(&mut self, hwnd: isize) {
         if self.windows.contains_key(&hwnd) {
             self.handle_window_move_start(hwnd);
-            self.window_updated
+            self.event_window_updated
                 .broadcast((self.windows[&hwnd].clone(), WindowUpdateType::MoveStart));
             debug!("start_move_window | handle: 0x{:X}", &hwnd);
         }
@@ -390,7 +395,7 @@ impl Manager {
     fn end_move_window(&mut self, hwnd: isize) {
         if self.windows.contains_key(&hwnd) {
             self.handle_window_move_end();
-            self.window_updated
+            self.event_window_updated
                 .broadcast((self.windows[&hwnd].clone(), WindowUpdateType::MoveEnd));
             debug!("end_move_window | handle: 0x{:X}", &hwnd);
         }
@@ -399,10 +404,25 @@ impl Manager {
     fn window_move(&mut self, hwnd: isize) {
         if let Some(window) = self.windows.get(&hwnd) {
             if window.can_layout() {
-                self.window_updated
+                self.event_window_updated
                     .broadcast((window.clone(), WindowUpdateType::Move));
             }
         }
+    }
+
+    fn handle_window_focused(&mut self, handle: isize) {
+        self.event_window_focused
+            .broadcast(self.windows[&handle].clone());
+    }
+
+    fn handle_window_updated(&mut self, handle: isize) {
+        self.event_external_window_update
+            .broadcast(self.windows[&handle].clone());
+    }
+
+    fn handle_window_closed(&mut self, handle: isize) {
+        self.event_external_window_closed
+            .broadcast(self.windows[&handle].clone());
     }
 
     fn handle_window_move_start(&mut self, handle: isize) {
@@ -430,12 +450,12 @@ impl Manager {
     }
 
     fn handle_window_add(&mut self, handle: isize, first_create: bool) {
-        self.window_created
+        self.event_window_created
             .broadcast((self.windows[&handle].clone(), first_create));
     }
 
     fn handle_window_remove(&mut self, handle: isize) {
-        self.window_destroyed
+        self.event_window_destroyed
             .broadcast(self.windows[&handle].clone());
     }
 

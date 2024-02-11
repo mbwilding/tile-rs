@@ -6,8 +6,8 @@ use crate::layout_engines::focus_layout_engine::FocusLayoutEngine;
 use crate::layout_engines::full_layout_engine::FullLayoutEngine;
 use crate::layout_engines::grid_layout_engine::GridLayoutEngine;
 use crate::layout_engines::*;
-use crate::manager::WindowUpdateType;
 use crate::window::Window;
+use crate::windows_manager::WindowUpdateType;
 use std::collections::HashMap;
 use std::fmt::Display;
 

@@ -4,7 +4,9 @@ use crate::classes::keys::{Keys, VirtualKey};
 use crate::classes::native_monitor_container::NativeMonitorContainer;
 use crate::classes::window_order::WindowOrder;
 use crate::layout_engines::LayoutEngineType;
-use crate::manager::Manager;
+use crate::windows_manager::WindowsManager;
+use crate::workspace_container::WorkspaceContainer;
+use crate::workspace_manager::WorkspaceManager;
 use eframe::egui;
 use eframe::emath::Align;
 use serde::{Deserialize, Serialize};
@@ -19,13 +21,19 @@ pub struct App {
     pub key_bindings: HashMap<Action, Keys>,
 
     #[serde(skip)]
-    pub windows_manager: Manager,
-
-    #[serde(skip)]
-    monitor_container: NativeMonitorContainer,
-
-    #[serde(skip)]
     window_state: WindowState,
+
+    #[serde(skip)]
+    pub windows_manager: WindowsManager,
+
+    #[serde(skip)]
+    pub monitor_container: NativeMonitorContainer,
+
+    #[serde(skip)]
+    pub workspace_manager: WorkspaceManager,
+
+    #[serde(skip)]
+    pub workspace_container: WorkspaceContainer,
 }
 
 impl Default for App {
@@ -33,9 +41,12 @@ impl Default for App {
         Self {
             settings: Settings::default(),
             key_bindings: default_key_bindings(),
-            windows_manager: Manager::default(),
-            monitor_container: NativeMonitorContainer::default(),
             window_state: WindowState::default(),
+
+            windows_manager: WindowsManager::default(),
+            monitor_container: NativeMonitorContainer::default(),
+            workspace_manager: WorkspaceManager::default(),
+            workspace_container: WorkspaceContainer::default(),
         }
     }
 }

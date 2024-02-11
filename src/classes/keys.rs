@@ -1,4 +1,4 @@
-use log::{info, trace};
+use log::trace;
 use serde::{Deserialize, Serialize};
 use windows::Win32::Foundation::{LPARAM, WPARAM};
 use windows::Win32::UI::Input::KeyboardAndMouse::{
